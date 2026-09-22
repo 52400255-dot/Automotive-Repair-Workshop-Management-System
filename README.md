@@ -23,7 +23,7 @@ cập nhật tiến độ, quản lý phụ tùng, báo giá, tính chi phí và
 | Thành viên | MSSV | Vai trò |
 |---|---|---|
 | Dương Đình Đức | 52400109 | Reception UI |
-| Lưu Nhật Quang | — | API và dịch vụ |
+| Lưu Nhật Quang | 52400229 | API và dịch vụ |
 | Phùng Nguyễn Hoàng Khôi | 52400206 | Database và bảo mật |
 | Tăng Duy Việt | 52400255 | Testing và Integration |
 
