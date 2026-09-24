@@ -51,3 +51,31 @@ Issue
 ## 6. Project Status
 
 Project đang được phát triển theo Agile/Scrum trong 8 tuần.
+
+
+## Database foundation (tuần 1 - Đức)
+
+Cần cài Docker Desktop và khởi động Docker trước khi chạy các lệnh dưới đây.
+
+1. Sao chép `.env.example` thành `.env` và đặt mật khẩu riêng trong `.env`.
+2. Khởi chạy PostgreSQL:
+
+   ```powershell
+   docker compose -f compose.db.yaml up -d
+   ```
+
+3. Trên PowerShell, tạo ba bảng nền (chạy một lần trên database mới):
+
+   ```powershell
+   Get-Content .\database\migrations\001_init.sql -Raw | docker compose -f compose.db.yaml exec -T db psql -X -v ON_ERROR_STOP=1 -1 -U workshop -d workshop_db
+   ```
+
+4. Kiểm tra danh sách bảng:
+
+   ```powershell
+   docker compose -f compose.db.yaml exec db psql -U workshop -d workshop_db -c "\dt"
+   ```
+
+Kết quả cần có: `users`, `customers`, `vehicles`.
+
+ERD toàn hệ thống nằm tại `database/ERD.md`. Trong tuần 1, mới chỉ có ba bảng nền được tạo trong PostgreSQL.
