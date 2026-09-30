@@ -70,29 +70,44 @@ Issue
 Project đang được phát triển theo Agile/Scrum trong 8 tuần.
 
 
-## Database foundation (tuần 1 - Đức)
+## Database setup (tuần 1–2 - Đức)
 
-Cần cài Docker Desktop và khởi động Docker trước khi chạy các lệnh dưới đây.
+Cài và khởi động Docker Desktop trước khi chạy các lệnh. Sao chép
+`.env.example` thành `.env` và đặt mật khẩu riêng trong `.env`.
 
-1. Sao chép `.env.example` thành `.env` và đặt mật khẩu riêng trong `.env`.
-2. Khởi chạy PostgreSQL:
+Khởi chạy PostgreSQL:
 
-   ```powershell
-   docker compose -f compose.db.yaml up -d
-   ```
+```powershell
+docker compose -f compose.db.yaml up -d
+```
 
-3. Trên PowerShell, tạo ba bảng nền (chạy một lần trên database mới):
+Trên **database mới**, chạy từng migration theo thứ tự, mỗi file một lần:
 
-   ```powershell
-   Get-Content .\database\migrations\001_init.sql -Raw | docker compose -f compose.db.yaml exec -T db psql -X -v ON_ERROR_STOP=1 -1 -U workshop -d workshop_db
-   ```
+```powershell
+Get-Content .\database\migrations\001_init.sql -Raw | docker compose -f compose.db.yaml exec -T db psql -X -v ON_ERROR_STOP=1 -1 -U workshop -d workshop_db
+Get-Content .\database\migrations\002_customers_vehicles.sql -Raw | docker compose -f compose.db.yaml exec -T db psql -X -v ON_ERROR_STOP=1 -1 -U workshop -d workshop_db
+```
 
-4. Kiểm tra danh sách bảng:
+Kiểm tra danh sách bảng:
 
-   ```powershell
-   docker compose -f compose.db.yaml exec db psql -U workshop -d workshop_db -c "\dt"
-   ```
+```powershell
+docker compose -f compose.db.yaml exec db psql -U workshop -d workshop_db -c "\dt"
+```
 
 Kết quả cần có: `users`, `customers`, `vehicles`.
 
-ERD toàn hệ thống nằm tại `database/ERD.md`. Trong tuần 1, mới chỉ có ba bảng nền được tạo trong PostgreSQL.
+Để nạp dữ liệu mẫu **một lần** vào database mới:
+
+```powershell
+Get-Content .\database\seeds\001_customers_vehicles.sql -Raw | docker compose -f compose.db.yaml exec -T db psql -X -v ON_ERROR_STOP=1 -1 -U workshop -d workshop_db
+```
+
+Chạy các query kiểm tra:
+
+```powershell
+Get-Content .\database\queries\001_check_customers_vehicles.sql -Raw | docker compose -f compose.db.yaml exec -T db psql -X -P pager=off -v ON_ERROR_STOP=1 -U workshop -d workshop_db
+```
+
+Database đã được tạo bằng phiên bản `001_init.sql` cũ vốn có đủ ba bảng thì
+**không chạy lại** `001` hoặc `002` trên database đó. Hãy dùng một database
+thử mới để kiểm tra chuỗi migration. ERD toàn hệ thống nằm tại `database/ERD.md`.
