@@ -7,6 +7,9 @@ services:
       POSTGRES_DB: workshop_db
     ports:
       - "5432:5432"
+    volumes:
+      # Chạy tự động toàn bộ migration khi tạo DB mới
+      - ./database/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U workshop_user -d workshop_db"]
       interval: 5s
@@ -24,6 +27,14 @@ services:
       DB_USER: workshop_user
       DB_PASSWORD: workshop_pass
       DB_NAME: workshop_db
+      JWT_SECRET: dev_secret_change_me
     depends_on:
       db:
         condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend

@@ -1,0 +1,606 @@
+openapi: 3.1.0
+info:
+  title: Automotive Repair Workshop Management API
+  description: >
+    REST API cho hệ thống quản lý gara sửa chữa ô tô.
+    Luồng chính: Tiếp nhận xe → Chẩn đoán → Báo giá → Duyệt → Sửa chữa (trừ kho phụ tùng)
+    → Hoàn thành → Hóa đơn → Thanh toán.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Local development
+
+tags:
+  - name: Auth
+  - name: Customers
+  - name: Vehicles
+  - name: RepairJobs
+  - name: SpareParts
+  - name: Estimates
+  - name: Invoices
+
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Đăng nhập, nhận JWT token
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+      responses:
+        '200':
+          description: Đăng nhập thành công, trả về token + thông tin user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      token: { type: string }
+                      user: { $ref: '#/components/schemas/User' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Lấy thông tin người dùng hiện tại
+      operationId: getMe
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Thông tin user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/User' }
+
+  /customers:
+    get:
+      tags: [Customers]
+      summary: Danh sách khách hàng
+      operationId: listCustomers
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Customer' }
+    post:
+      tags: [Customers]
+      summary: Tạo khách hàng mới (receptionist/admin)
+      operationId: createCustomer
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerInput' }
+      responses:
+        '201': { description: Đã tạo khách hàng }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /customers/{id}/vehicles:
+    get:
+      tags: [Customers]
+      summary: Danh sách xe của một khách hàng
+      operationId: getCustomerVehicles
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Vehicle' }
+
+  /vehicles/{id}/repair-history:
+    get:
+      tags: [Vehicles]
+      summary: Lịch sử sửa chữa của xe (US03)
+      operationId: getVehicleRepairHistory
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/RepairJob' }
+
+  /repair-jobs:
+    get:
+      tags: [RepairJobs]
+      summary: Danh sách phiếu sửa chữa (lọc theo status)
+      operationId: listRepairJobs
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: status
+          schema: { $ref: '#/components/schemas/JobStatus' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/RepairJob' }
+    post:
+      tags: [RepairJobs]
+      summary: Lễ tân tiếp nhận xe, tạo phiếu sửa (US04, US05)
+      operationId: createRepairJob
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [vehicleId]
+              properties:
+                vehicleId: { type: integer, format: int64 }
+                customerRequest: { type: string }
+      responses:
+        '201':
+          description: Phiếu sửa đã tạo (status = pending)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/RepairJob' }
+
+  /repair-jobs/my-jobs:
+    get:
+      tags: [RepairJobs]
+      summary: Việc của thợ máy đang đăng nhập (US08)
+      operationId: getMyJobs
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/RepairJob' }
+
+  /repair-jobs/{id}/assign:
+    put:
+      tags: [RepairJobs]
+      summary: Phân công thợ máy (US07)
+      operationId: assignMechanic
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mechanicId]
+              properties:
+                mechanicId: { type: integer, format: int64 }
+      responses:
+        '200': { description: Đã phân công, phiếu chuyển sang diagnosing }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /repair-jobs/{id}/diagnosis:
+    put:
+      tags: [RepairJobs]
+      summary: Thợ máy ghi nhận chẩn đoán (US06)
+      operationId: saveDiagnosis
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [diagnosisResult]
+              properties:
+                diagnosisResult: { type: string }
+                repairSuggestion: { type: string }
+      responses:
+        '201': { description: Đã lưu chẩn đoán }
+
+  /repair-jobs/{id}/status:
+    put:
+      tags: [RepairJobs]
+      summary: Cập nhật trạng thái phiếu sửa (US09)
+      operationId: updateJobStatus
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { $ref: '#/components/schemas/JobStatus' }
+      responses:
+        '200': { description: Đã cập nhật }
+
+  /spare-parts:
+    get:
+      tags: [SpareParts]
+      summary: Danh sách phụ tùng trong kho (US10)
+      operationId: listSpareParts
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/SparePart' }
+    post:
+      tags: [SpareParts]
+      summary: Thêm phụ tùng mới (warehouse_staff/admin)
+      operationId: createSparePart
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SparePartInput' }
+      responses:
+        '201': { description: Đã tạo }
+
+  /spare-parts/low-stock:
+    get:
+      tags: [SpareParts]
+      summary: Cảnh báo phụ tùng dưới ngưỡng tồn (US12)
+      operationId: listLowStockParts
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/SparePart' }
+
+  /spare-parts/{id}/deduct:
+    post:
+      tags: [SpareParts]
+      summary: Trừ kho khi thợ ghi nhận phụ tùng đã dùng (US11)
+      operationId: deductSparePart
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [repairJobId, quantity]
+              properties:
+                repairJobId: { type: integer, format: int64 }
+                quantity: { type: number, exclusiveMinimum: 0 }
+      responses:
+        '201': { description: Đã trừ kho + ghi nhận vào phiếu }
+        '409': { description: Kho không đủ số lượng }
+
+  /spare-parts/{id}/import:
+    post:
+      tags: [SpareParts]
+      summary: Nhập kho phụ tùng
+      operationId: importSparePart
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity]
+              properties:
+                quantity: { type: number, exclusiveMinimum: 0 }
+      responses:
+        '200': { description: Đã nhập kho }
+
+  /estimates:
+    post:
+      tags: [Estimates]
+      summary: Tạo báo giá cho phiếu sửa (US13, US14)
+      operationId: createEstimate
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [repairJobId, items]
+              properties:
+                repairJobId: { type: integer, format: int64 }
+                items:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [itemType, description, quantity, unitPrice]
+                    properties:
+                      itemType: { type: string, enum: [labor, part, other] }
+                      description: { type: string }
+                      quantity: { type: number }
+                      unitPrice: { type: number }
+      responses:
+        '201':
+          description: Báo giá đã tạo, tổng tiền tự tính
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Estimate' }
+
+  /estimates/{id}/approve:
+    put:
+      tags: [Estimates]
+      summary: Khách đồng ý báo giá → phiếu chuyển approved
+      operationId: approveEstimate
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      responses:
+        '200': { description: Đã duyệt }
+        '404': { description: Báo giá không tồn tại hoặc đã xử lý }
+
+  /estimates/{id}/reject:
+    put:
+      tags: [Estimates]
+      summary: Khách từ chối báo giá → phiếu cancelled
+      operationId: rejectEstimate
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      responses:
+        '200': { description: Đã từ chối }
+
+  /invoices:
+    post:
+      tags: [Invoices]
+      summary: Xuất hóa đơn cho phiếu đã hoàn thành (US15)
+      operationId: createInvoice
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [repairJobId]
+              properties:
+                repairJobId: { type: integer, format: int64 }
+      responses:
+        '201':
+          description: Hóa đơn gồm nhân công + phụ tùng + VAT 10%
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Invoice' }
+        '409': { description: Phiếu chưa hoàn thành hoặc đã có hóa đơn }
+
+  /invoices/{id}/pay:
+    put:
+      tags: [Invoices]
+      summary: Ghi nhận thanh toán hóa đơn
+      operationId: payInvoice
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount: { type: number }
+                paymentMethod: { type: string, enum: [cash, bank_transfer, card] }
+      responses:
+        '200': { description: Đã thanh toán }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdPath:
+      in: path
+      name: id
+      required: true
+      schema: { type: integer, format: int64 }
+
+  responses:
+    Unauthorized:
+      description: Chưa đăng nhập / token hết hạn
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Sai phân quyền (RBAC)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        success: { type: boolean, const: false }
+        message: { type: string }
+
+    User:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        fullName: { type: string }
+        email: { type: string, format: email }
+        role:
+          type: string
+          enum: [customer, receptionist, service_manager, mechanic, warehouse_staff, admin]
+
+    Customer:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        userId: { type: [integer, 'null'], format: int64 }
+        fullName: { type: string }
+        phone: { type: string }
+        email: { type: [string, 'null'], format: email }
+
+    CustomerInput:
+      type: object
+      required: [fullName, phone]
+      properties:
+        userId: { type: integer, format: int64 }
+        fullName: { type: string }
+        phone: { type: string }
+        email: { type: string, format: email }
+
+    Vehicle:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        customerId: { type: integer, format: int64 }
+        licensePlate: { type: string, examples: ['51A-12345'] }
+        brand: { type: string, examples: ['Toyota'] }
+        model: { type: string, examples: ['Vios'] }
+        manufactureYear: { type: [integer, 'null'] }
+
+    JobStatus:
+      type: string
+      enum: [pending, diagnosing, estimated, approved, in_repair, completed, cancelled]
+
+    RepairJob:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        vehicleId: { type: integer, format: int64 }
+        receptionistId: { type: integer, format: int64 }
+        customerRequest: { type: [string, 'null'] }
+        status: { $ref: '#/components/schemas/JobStatus' }
+        receivedAt: { type: string, format: date-time }
+        completedAt: { type: [string, 'null'], format: date-time }
+        licensePlate: { type: string }
+        customerName: { type: string }
+
+    SparePart:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        partCode: { type: string, examples: ['OIL-FLT-001'] }
+        partName: { type: string, examples: ['Lọc nhớt'] }
+        unit: { type: string, examples: ['piece'] }
+        stockQuantity: { type: number }
+        unitPrice: { type: number }
+        minStock: { type: number }
+
+    SparePartInput:
+      type: object
+      required: [partCode, partName, unitPrice]
+      properties:
+        partCode: { type: string }
+        partName: { type: string }
+        unit: { type: string }
+        stockQuantity: { type: number }
+        unitPrice: { type: number }
+        minStock: { type: number }
+
+    Estimate:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        repairJobId: { type: integer, format: int64 }
+        status: { type: string, enum: [draft, sent, approved, rejected] }
+        totalAmount: { type: number }
+        createdAt: { type: string, format: date-time }
+        approvedAt: { type: [string, 'null'], format: date-time }
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              itemType: { type: string, enum: [labor, part, other] }
+              description: { type: string }
+              quantity: { type: number }
+              unitPrice: { type: number }
+
+    Invoice:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        repairJobId: { type: integer, format: int64 }
+        estimateId: { type: [integer, 'null'], format: int64 }
+        status: { type: string, enum: [draft, issued, paid, cancelled] }
+        totalAmount: { type: number }
+        issuedAt: { type: string, format: date-time }
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              description: { type: string }
+              quantity: { type: number }
+              unitPrice: { type: number }

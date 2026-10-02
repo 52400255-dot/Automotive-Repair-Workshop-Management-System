@@ -7,27 +7,76 @@ on:
       - main
 
 jobs:
-  test:
+  frontend:
     runs-on: ubuntu-latest
-
+    defaults:
+      run:
+        working-directory: frontend
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
-
-      - name: Install frontend dependencies
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
         run: npm ci
-
-      - name: Lint frontend
+      - name: Lint
         run: npm run lint
-
-      - name: Build frontend
+      - name: Build
         run: npm run build
 
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+        working-directory: backend
+      - name: Unit tests (pricing, tax, inventory)
+        run: npm test
+
+  api-integration:
+    runs-on: ubuntu-latest
+    needs: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: workshop_user
+          POSTGRES_PASSWORD: workshop_pass
+          POSTGRES_DB: workshop_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U workshop_user"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Run database migrations
+        run: |
+          for f in database/migrations/*.sql; do
+            psql "postgresql://workshop_user:workshop_pass@localhost:5432/workshop_db" -X -v ON_ERROR_STOP=1 -1 -f "$f"
+          done
       - name: Install backend dependencies
         run: npm ci
         working-directory: backend
+      - name: Start server & smoke test health endpoint
+        run: |
+          DB_HOST=localhost DB_PORT=5432 DB_USER=workshop_user DB_PASSWORD=workshop_pass DB_NAME=workshop_db \
+          node backend/src/server.js &
+          sleep 3
+          curl -sf http://localhost:3000/api/health
+          echo " <- health OK"
