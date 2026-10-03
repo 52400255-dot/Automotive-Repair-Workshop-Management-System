@@ -42,6 +42,12 @@ async function update(id, { licensePlate, brand, model, manufactureYear }) {
   return result.rows[0] || null;
 }
 
+async function remove(id) {
+  const result = await pool.query('DELETE FROM vehicles WHERE id = $1 RETURNING id', [id]);
+  return result.rows[0] || null;
+}
+
+
 /** Lịch sử sửa chữa của xe: repair_jobs + tên khách hàng */
 async function getRepairHistory(vehicleId) {
   const result = await pool.query(
@@ -57,4 +63,4 @@ async function getRepairHistory(vehicleId) {
   return result.rows;
 }
 
-module.exports = { findAll, findById, create, update, getRepairHistory };
+module.exports = { findAll, findById, create, update, remove, getRepairHistory };

@@ -32,9 +32,17 @@ async function update(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function remove(req, res, next) {
+  try {
+    const deleted = await vehicleService.remove(req.params.id);
+    if (!deleted) return res.status(404).json({ success: false, message: 'Không tìm thấy xe' });
+    res.json({ success: true, message: 'Đã xóa xe' });
+  } catch (err) { next(err); }
+}
+
 async function repairHistory(req, res, next) {
   try { res.json({ success: true, data: await vehicleService.getRepairHistory(req.params.id) }); }
   catch (err) { next(err); }
 }
 
-module.exports = { list, getById, create, update, repairHistory };
+module.exports = { list, getById, create, update, remove, repairHistory };
