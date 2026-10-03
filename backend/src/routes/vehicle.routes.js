@@ -15,5 +15,5 @@ router.get('/:id/repair-history', controller.repairHistory);
 
 router.post('/', authorize('receptionist', 'admin'), controller.create);
 router.put('/:id', authorize('receptionist', 'admin'), controller.update);
-
+router.delete('/:id', authorize('admin'), controller.remove);
 module.exports = router;
