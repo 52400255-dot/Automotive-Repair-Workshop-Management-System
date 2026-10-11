@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', roles: ['receptionist', 'service_manager', 'mechanic', 'warehouse_staff', 'admin'] },
   { to: '/reception', label: 'Tiep nhan xe', roles: ['receptionist'] },
   { to: '/repair-jobs', label: 'Phieu sua chua', roles: ['receptionist', 'service_manager', 'admin'] },
+  { to: '/vehicle-history', label: 'Lich su sua chua', roles: ['receptionist', 'service_manager', 'admin'] },
   { to: '/task-board', label: 'Bang cong viec', roles: ['mechanic'] },
   { to: '/inventory', label: 'Kho phu tung', roles: ['warehouse_staff', 'receptionist', 'admin'] },
   { to: '/customers', label: 'Khach hang', roles: ['receptionist', 'admin'] },
