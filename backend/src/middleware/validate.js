@@ -97,4 +97,25 @@ function validate(schema) {
   };
 }
 
-module.exports = { validate };
+/**
+ * validateIntParam — Factory tạo middleware kiểm tra tham số trên URL (req.params)
+ * Là số nguyên dương, tránh để lỗi PostgreSQL lọt ra ngoài thành HTTP 500.
+ *
+ * @param {string} name - Tên tham số, mặc định 'id'
+ * @returns {Function} Express middleware
+ */
+function validateIntParam(name = 'id') {
+  return (req, res, next) => {
+    const raw = req.params[name];
+    if (!/^\d+$/.test(String(raw ?? '')) || Number(raw) <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Tham số '${name}' không hợp lệ (phải là số nguyên dương)`,
+        errors: [{ field: name, message: `'${name}' phải là số nguyên dương, nhận được '${raw}'` }],
+      });
+    }
+    next();
+  };
+}
+
+module.exports = { validate, validateIntParam };

@@ -11,6 +11,7 @@ import LoginPage from '../pages/LoginPage';
 import DashboardPage from '../pages/DashboardPage';
 import ReceptionPage from '../pages/reception/ReceptionPage';
 import RepairJobsPage from '../pages/reception/RepairJobsPage';
+import VehicleHistoryPage from '../pages/reception/VehicleHistoryPage';
 import CustomersPage from '../pages/reception/CustomersPage';
 import TaskBoardPage from '../pages/mechanic/TaskBoardPage';
 import InventoryPage from '../pages/inventory/InventoryPage';
@@ -40,6 +41,9 @@ export default function AppRouter() {
           } />
           <Route path="/repair-jobs" element={
             <ProtectedRoute roles={['receptionist', 'service_manager', 'admin']}><RepairJobsPage /></ProtectedRoute>
+          } />
+          <Route path="/vehicle-history" element={
+            <ProtectedRoute roles={['receptionist', 'service_manager', 'admin']}><VehicleHistoryPage /></ProtectedRoute>
           } />
           <Route path="/customers" element={
             <ProtectedRoute roles={['receptionist', 'admin']}><CustomersPage /></ProtectedRoute>

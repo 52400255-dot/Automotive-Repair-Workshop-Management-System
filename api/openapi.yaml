@@ -118,14 +118,17 @@ paths:
                     type: array
                     items: { $ref: '#/components/schemas/Vehicle' }
 
-  /vehicles/{id}/repair-history:
+  /vehicles:
     get:
       tags: [Vehicles]
-      summary: Lịch sử sửa chữa của xe (US03)
-      operationId: getVehicleRepairHistory
+      summary: Danh sách xe, có thể tìm kiếm (US03 — chọn phương tiện)
+      operationId: listVehicles
       security: [{ bearerAuth: [] }]
       parameters:
-        - { $ref: '#/components/parameters/IdPath' }
+        - in: query
+          name: search
+          description: Từ khóa khớp (ILIKE) biển số, hãng xe, dòng xe hoặc tên khách hàng
+          schema: { type: string }
       responses:
         '200':
           description: OK
@@ -136,7 +139,38 @@ paths:
                 properties:
                   data:
                     type: array
+                    items: { $ref: '#/components/schemas/Vehicle' }
+
+  /vehicles/{id}/repair-history:
+    get:
+      tags: [Vehicles]
+      summary: Lịch sử sửa chữa của xe (US03)
+      description: >
+        Lễ tân, quản lý dịch vụ và admin xem được lịch sử của mọi xe;
+        khách hàng chỉ xem được xe thuộc hồ sơ của mình; role khác bị từ chối.
+      operationId: getVehicleRepairHistory
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      responses:
+        '200':
+          description: Danh sách phiếu sửa chữa của đúng xe này, mới nhất trước
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
                     items: { $ref: '#/components/schemas/RepairJob' }
+        '400':
+          description: id không phải số nguyên dương
+        '401':
+          description: Thiếu hoặc sai token
+        '403':
+          description: Role không được xem lịch sử, hoặc khách hàng không sở hữu xe này
+        '404':
+          description: Xe không tồn tại
 
   /repair-jobs:
     get:
