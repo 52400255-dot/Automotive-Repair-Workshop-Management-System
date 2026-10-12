@@ -34,15 +34,25 @@ async function findById(id) {
   return result.rows[0] || null;
 }
 
-/** Lễ tân tiếp nhận xe → tạo Repair Job mới (status = pending) */
-async function create({ vehicleId, receptionistId, customerRequest }) {
+/**
+ * Lễ tân tiếp nhận xe → tạo Repair Job + các hạng mục dịch vụ (repair_details)
+ * trong một transaction an toàn, thông qua stored procedure
+ * create_repair_job_with_services (xem migration 014).
+ *
+ * serviceItems: mảng [{ serviceId, quantity }, ...]
+ */
+async function create({ vehicleId, receptionistId, customerRequest, serviceItems }) {
+  const items = (serviceItems || []).map(item => ({
+    service_id: item.serviceId,
+    quantity: item.quantity,
+  }));
+
   const result = await pool.query(
-    `INSERT INTO repair_jobs (vehicle_id, receptionist_id, customer_request)
-     VALUES ($1, $2, $3)
-     RETURNING *`,
-    [vehicleId, receptionistId, customerRequest]
+    `SELECT create_repair_job_with_services($1, $2, $3, $4::jsonb) AS id`,
+    [vehicleId, receptionistId, customerRequest, JSON.stringify(items)]
   );
-  return result.rows[0];
+
+  return findById(result.rows[0].id);
 }
 
 /**

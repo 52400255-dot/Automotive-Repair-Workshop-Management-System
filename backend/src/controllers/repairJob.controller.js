@@ -16,12 +16,12 @@ async function getById(req, res, next) {
   } catch (err) { next(err); }
 }
 
-/** Lễ tân tiếp nhận xe → tạo Repair Job */
+/** Lễ tân tiếp nhận xe → tạo Repair Job kèm hạng mục dịch vụ */
 async function create(req, res, next) {
   try {
-    const { vehicleId, customerRequest } = req.body;
+    const { vehicleId, customerRequest, serviceItems } = req.body;
     const created = await jobService.create({
-      vehicleId, customerRequest, receptionistId: req.user.id,
+      vehicleId, customerRequest, serviceItems, receptionistId: req.user.id,
     });
     res.status(201).json({ success: true, data: created });
   } catch (err) { next(err); }
