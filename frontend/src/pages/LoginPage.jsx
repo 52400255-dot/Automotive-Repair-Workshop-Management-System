@@ -1,60 +1,66 @@
-/**
- * LoginPage — Màn hình đăng nhập cho tất cả vai trò.
- */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { MOCK_USERS } from '../mocks/mockUsers';
 
 export default function LoginPage() {
-  const { login } = useAuth();
-  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-  async function handleSubmit(e) {
+  const handleLogin = (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
-    try {
-      const user = await login(email, password);
-      navigate(user.role === 'customer' ? '/portal' : '/');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Dang nhap that bai');
-    } finally {
-      setLoading(false);
+
+    // Tìm tài khoản khớp với thông tin nhập từ Mock Users
+    const foundUser = MOCK_USERS.find(
+      (u) => u.email === email && u.password === password
+    );
+
+    if (foundUser) {
+      // Lưu thông tin đăng nhập vào localStorage
+      localStorage.setItem('user', JSON.stringify(foundUser));
+      localStorage.setItem('token', 'mock-jwt-token-admin');
+
+      alert(`Đăng nhập thành công với vai trò: ${foundUser.role}`);
+      navigate('/reception'); // Hoặc điều hướng tới trang tương ứng
+    } else {
+      setError('Email hoặc Mật khẩu không chính xác! (Thử: admin@garage.com / 123)');
     }
-  }
+  };
 
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: '#f5f5f5',
-    }}>
-      <form onSubmit={handleSubmit} className="card" style={{ width: 380 }}>
-        <h1 style={{ fontSize: 20, marginBottom: 4 }}>Garage Management</h1>
-        <p style={{ color: '#757575', marginBottom: 20 }}>Dang nhap vao he thong</p>
+    <div style={{ padding: '20px', maxWidth: '400px', margin: '100px auto', border: '1px solid #ccc', borderRadius: '8px' }}>
+      <h2>Garage Management</h2>
+      <p>Dang nhap vao he thong</p>
 
-        {error && (
-          <div style={{ background: '#ffebee', color: '#d32f2f', padding: '8px 12px', borderRadius: 6, marginBottom: 16 }}>
-            {error}
-          </div>
-        )}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
 
-        <div className="form-group">
+      <form onSubmit={handleLogin}>
+        <div style={{ marginBottom: '15px' }}>
           <label>Email</label>
-          <input className="form-control" type="email" value={email}
-            onChange={(e) => setEmail(e.target.value)} required autoFocus />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+            required
+          />
         </div>
-        <div className="form-group">
+
+        <div style={{ marginBottom: '15px' }}>
           <label>Mat khau</label>
-          <input className="form-control" type="password" value={password}
-            onChange={(e) => setPassword(e.target.value)} required />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+            required
+          />
         </div>
-        <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }}
-          disabled={loading}>
-          {loading ? 'Dang dang nhap...' : 'Dang nhap'}
+
+        <button type="submit" style={{ width: '100%', padding: '10px', backgroundColor: '#1890ff', color: '#fff', border: 'none', borderRadius: '4px' }}>
+          Dang nhap
         </button>
       </form>
     </div>
