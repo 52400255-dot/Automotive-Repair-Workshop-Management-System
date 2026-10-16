@@ -1,5 +1,3 @@
-import React from "react";
-
 const lowStockParts = [
     { id: 'PT02', name: 'Má phanh Toyota', stock: 3, threshold: 5 },
     { id: 'PT05', name: 'Lọc gió động cơ', stock: 1, threshold: 5 }
