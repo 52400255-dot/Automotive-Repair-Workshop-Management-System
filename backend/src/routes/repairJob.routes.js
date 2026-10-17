@@ -26,4 +26,6 @@ router.put('/:id/assign', authorize('service_manager', 'receptionist'), controll
 // Thợ máy ghi nhận chẩn đoán
 router.put('/:id/diagnosis', authorize('mechanic'), controller.diagnosis);
 
+router.get('/:id/diagnosis', authorize('receptionist', 'service_manager', 'mechanic', 'admin'), controller.diagnosisHistory);
+
 module.exports = router;
