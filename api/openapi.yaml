@@ -236,6 +236,30 @@ paths:
                     type: array
                     items: { $ref: '#/components/schemas/RepairJob' }
 
+  /repair-jobs/mechanics:
+    get:
+      tags: [RepairJobs]
+      summary: Lấy danh sách kỹ thuật viên để phân công (US07)
+      operationId: getMechanicsList
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Danh sách kỹ thuật viên
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer, format: int64 }
+                        full_name: { type: string }
+                        email: { type: string }
+
   /repair-jobs/{id}/assign:
     put:
       tags: [RepairJobs]
@@ -491,6 +515,32 @@ paths:
                 paymentMethod: { type: string, enum: [cash, bank_transfer, card] }
       responses:
         '200': { description: Đã thanh toán }
+
+  /services:
+    get:
+      tags: [Services]
+      summary: Lấy danh mục dịch vụ sửa chữa chuẩn
+      operationId: listServices
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Danh mục dịch vụ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer, format: int64 }
+                        service_code: { type: string }
+                        service_name: { type: string }
+                        description: { type: string }
+                        standard_price: { type: number }
 
 components:
   securitySchemes:

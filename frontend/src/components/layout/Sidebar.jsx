@@ -6,14 +6,14 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const NAV_ITEMS = [
-  { to: '/', label: 'Dashboard', roles: ['receptionist', 'service_manager', 'mechanic', 'warehouse_staff', 'admin'] },
-  { to: '/reception', label: 'Tiep nhan xe', roles: ['receptionist'] },
-  { to: '/repair-jobs', label: 'Phieu sua chua', roles: ['receptionist', 'service_manager', 'admin'] },
-  { to: '/vehicle-history', label: 'Lich su sua chua', roles: ['receptionist', 'service_manager', 'admin'] },
-  { to: '/task-board', label: 'Bang cong viec', roles: ['mechanic'] },
-  { to: '/inventory', label: 'Kho phu tung', roles: ['warehouse_staff', 'receptionist', 'admin'] },
-  { to: '/customers', label: 'Khach hang', roles: ['receptionist', 'admin'] },
-  { to: '/portal', label: 'Cua ban theo doi', roles: ['customer'] },
+  { to: '/', label: 'Bảng điều khiển', roles: ['receptionist', 'service_manager', 'mechanic', 'warehouse_staff', 'admin'] },
+  { to: '/reception', label: 'Tiếp nhận xe', roles: ['receptionist'] },
+  { to: '/repair-jobs', label: 'Phiếu sửa chữa', roles: ['receptionist', 'service_manager', 'admin'] },
+  { to: '/vehicle-history', label: 'Lịch sử sửa chữa', roles: ['receptionist', 'service_manager', 'admin'] },
+  { to: '/task-board', label: 'Bảng công việc', roles: ['mechanic'] },
+  { to: '/inventory', label: 'Kho phụ tùng', roles: ['warehouse_staff', 'receptionist', 'admin'] },
+  { to: '/customers', label: 'Khách hàng', roles: ['receptionist', 'admin'] },
+  { to: '/portal', label: 'Cổng theo dõi khách hàng', roles: ['customer'] },
 ];
 
 const linkStyle = ({ isActive }) => ({

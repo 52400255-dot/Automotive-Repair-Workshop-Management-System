@@ -62,8 +62,15 @@ async function diagnosis(req, res, next) {
 
 /** Mechanic Task Board — việc của chính thợ đăng nhập */
 async function myJobs(req, res, next) {
-  try { res.json({ success: true, data: await jobService.getJobsForMechanic(req.user.id) }); }
+  try { res.json({ success: true, data: await jobService.getJobsForMechanic(req.user.id, req.query.status) }); }
   catch (err) { next(err); }
 }
 
-module.exports = { list, getById, create, updateStatus, assign, diagnosis, myJobs };
+/** Danh sách thợ máy cho lễ tân / quản lý phân công */
+async function getMechanics(req, res, next) {
+  try { res.json({ success: true, data: await jobService.getMechanics() }); }
+  catch (err) { next(err); }
+}
+
+module.exports = { list, getById, create, updateStatus, assign, diagnosis, myJobs, getMechanics };
+

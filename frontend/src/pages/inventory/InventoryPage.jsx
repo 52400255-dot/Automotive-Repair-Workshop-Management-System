@@ -29,14 +29,14 @@ export default function InventoryPage() {
   }, [reload]);
 
   async function handleImport(partId) {
-    const qty = prompt('So luong nhap kho:');
+    const qty = prompt('Nhập số lượng phụ tùng cần nhập kho:');
     if (!qty || Number(qty) <= 0) return;
     try {
       await api.post(`/spare-parts/${partId}/import`, { quantity: Number(qty) });
-      setNotice(`Da nhap ${qty} cho phu tung #${partId}`);
+      setNotice(`Đã nhập ${qty} đơn vị cho phụ tùng #${partId}`);
       setReload((n) => n + 1);
     } catch (err) {
-      setNotice(err.response?.data?.message || 'Loi nhap kho');
+      setNotice(err.response?.data?.message || 'Lỗi nhập kho');
     }
   }
 
@@ -44,7 +44,7 @@ export default function InventoryPage() {
   async function handleRecordUsage(e) {
     e.preventDefault();
     if (!usageForm.repairJobId || !usageForm.partId || usageForm.quantity <= 0) {
-      alert('Vui long nhap day du thong tin Phieu sua chua va So luong!');
+      alert('Vui lòng nhập đầy đủ thông tin Phiếu sửa chữa và Số lượng!');
       return;
     }
 
@@ -53,11 +53,11 @@ export default function InventoryPage() {
         part_id: usageForm.partId,
         quantity: Number(usageForm.quantity)
       });
-      setNotice(`Da ghi nhan phu tung cho Phieu #${usageForm.repairJobId} thanh cong!`);
+      setNotice(`Đã ghi nhận phụ tùng cho Phiếu #${usageForm.repairJobId} thành công!`);
       setUsageForm({ repairJobId: '', partId: '', quantity: 1 });
       setReload((n) => n + 1);
     } catch (err) {
-      setNotice(err.response?.data?.message || 'Loi ghi nhan phu tung');
+      setNotice(err.response?.data?.message || 'Lỗi ghi nhận phụ tùng');
     }
   }
 
@@ -67,7 +67,7 @@ export default function InventoryPage() {
   return (
     <div style={{ padding: '20px' }}>
       <div className="page-header">
-        <h1>Kho phu tung & Vat tu</h1>
+        <h1>Kho phụ tùng & Vật tư</h1>
       </div>
 
       {notice && <p style={{ color: 'var(--primary)', marginBottom: 12, fontWeight: 'bold' }}>{notice}</p>}
@@ -75,11 +75,11 @@ export default function InventoryPage() {
       {/* 1. Khu vực Thẻ Cảnh Báo Tồn Kho Thấp (US12) */}
       {lowStockParts.length > 0 && (
         <div style={{ marginBottom: 20, padding: 15, background: '#fff2f0', border: '1px solid #ff4d4f', borderRadius: 8 }}>
-          <h3 style={{ margin: '0 0 10px 0', color: '#cf1322' }}>⚠️ Canh bao phu tung sap het kho ({lowStockParts.length})</h3>
+          <h3 style={{ margin: '0 0 10px 0', color: '#cf1322' }}>⚠️ Cảnh báo phụ tùng sắp hết kho ({lowStockParts.length})</h3>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             {lowStockParts.map((p) => (
               <span key={p.id} className="badge badge-pending" style={{ padding: '6px 12px', background: '#ff4d4f', color: '#fff' }}>
-                {p.part_name} (Con: {p.stock_quantity} {p.unit})
+                {p.part_name} (Còn: {p.stock_quantity} {p.unit})
               </span>
             ))}
           </div>
@@ -88,11 +88,11 @@ export default function InventoryPage() {
 
       {/* 2. Form Ghi Nhận Phụ Tùng Sử Dụng Cho Phiếu Sửa Chữa (US10 & US11) */}
       <div className="card" style={{ marginBottom: 20, padding: 15 }}>
-        <h3>Ghi nhan phu tung su dung cho Phieu sua chua</h3>
+        <h3>Ghi nhận phụ tùng sử dụng cho Phiếu sửa chữa</h3>
         <form onSubmit={handleRecordUsage} style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10 }}>
           <input
             className="form-control"
-            placeholder="Ma phieu sua chua (VD: 101)"
+            placeholder="Mã phiếu sửa chữa (VD: 1)"
             value={usageForm.repairJobId}
             onChange={(e) => setUsageForm({ ...usageForm, repairJobId: e.target.value })}
             required
@@ -103,10 +103,10 @@ export default function InventoryPage() {
             onChange={(e) => setUsageForm({ ...usageForm, partId: e.target.value })}
             required
           >
-            <option value="">-- Chon phu tung --</option>
+            <option value="">-- Chọn phụ tùng --</option>
             {parts.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.part_name} (Ton: {p.stock_quantity})
+                {p.part_name} (Tồn: {p.stock_quantity})
               </option>
             ))}
           </select>
@@ -119,7 +119,7 @@ export default function InventoryPage() {
             onChange={(e) => setUsageForm({ ...usageForm, quantity: e.target.value })}
             required
           />
-          <button type="submit" className="btn btn-primary">Ghi nhan su dung</button>
+          <button type="submit" className="btn btn-primary">Ghi nhận sử dụng</button>
         </form>
       </div>
 
@@ -129,12 +129,12 @@ export default function InventoryPage() {
           <table>
             <thead>
               <tr>
-                <th>Ma hang</th>
-                <th>Ten phu tung</th>
-                <th>Don vi</th>
-                <th>Ton kho</th>
-                <th>Don gia</th>
-                <th>Thao tac</th>
+                <th>MÃ HÀNG</th>
+                <th>TÊN PHỤ TÙNG</th>
+                <th>ĐƠN VỊ</th>
+                <th>TỒN KHO</th>
+                <th>ĐƠN GIÁ</th>
+                <th>THAO TÁC</th>
               </tr>
             </thead>
             <tbody>
@@ -143,17 +143,17 @@ export default function InventoryPage() {
                   <td>{p.part_code}</td>
                   <td>
                     {p.part_name}
-                    {isLow(p) && <span className="badge badge-pending" style={{ marginLeft: 8 }}>Sap het</span>}
+                    {isLow(p) && <span className="badge badge-pending" style={{ marginLeft: 8 }}>Sắp hết</span>}
                   </td>
                   <td>{p.unit}</td>
                   <td>{p.stock_quantity}</td>
                   <td>{Number(p.unit_price).toLocaleString('vi-VN')} đ</td>
                   <td>
-                    <button className="btn btn-outline" onClick={() => handleImport(p.id)}>Nhap kho</button>
+                    <button className="btn btn-outline" onClick={() => handleImport(p.id)}>Nhập kho</button>
                   </td>
                 </tr>
               ))}
-              {!parts.length && <tr><td colSpan={6}>Kho trong</td></tr>}
+              {!parts.length && <tr><td colSpan={6}>Kho trống</td></tr>}
             </tbody>
           </table>
         </div>
