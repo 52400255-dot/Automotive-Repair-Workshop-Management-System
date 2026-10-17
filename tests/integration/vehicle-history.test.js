@@ -133,8 +133,8 @@ before(async () => {
 
   for (const [key, plate] of [['jobA1', 'US03A-111.11'], ['jobA2', 'US03A-111.11']]) {
     fixtures[key] = (await mk(
-      `INSERT INTO repair_jobs (vehicle_id, receptionist_id, customer_request, status, completed_at)
-       VALUES ((SELECT id FROM vehicles WHERE license_plate = $1), $2, $3, 'completed', CURRENT_TIMESTAMP)
+      `INSERT INTO repair_jobs (vehicle_id, receptionist_id, customer_request, status)
+       VALUES ((SELECT id FROM vehicles WHERE license_plate = $1), $2, $3, 'pending')
        RETURNING id`,
       [plate, receptionist, `Yeu cau rieng cua ${key} - ${plate}`])).id;
   }
@@ -154,9 +154,17 @@ before(async () => {
   await db.query(
     `INSERT INTO used_parts (repair_job_id, spare_part_id, quantity, unit_price_at_time)
      VALUES ($1, $2, 4, 150000)`, [fixtures.jobA1, fixtures.sparePart]);
-  await db.query(
+    await db.query(
     `INSERT INTO mechanic_assignments (repair_job_id, mechanic_id, assigned_by, status)
      VALUES ($1, $2, $3, 'completed')`, [fixtures.jobA1, mechanic, receptionist]);
+
+  await db.query(
+    `UPDATE repair_jobs
+     SET status = 'completed',
+         completed_at = CURRENT_TIMESTAMP
+     WHERE id = ANY($1::bigint[])`,
+    [[fixtures.jobA1, fixtures.jobA2]]);
+
   await db.query(
     `INSERT INTO invoices (repair_job_id, status, total_amount, issued_at)
      VALUES ($1, 'paid', 1000000, CURRENT_TIMESTAMP)`, [fixtures.jobA1]);
