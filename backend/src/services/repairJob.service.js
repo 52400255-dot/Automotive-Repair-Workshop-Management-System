@@ -127,6 +127,18 @@ async function addDiagnosis({ repairJobId, mechanicId, diagnosisResult, repairSu
   }
 }
 
+async function getDiagnosisHistory(repairJobId) {
+  const result = await pool.query(
+    `SELECT d.*, u.full_name AS mechanic_name
+     FROM diagnoses d
+     JOIN users u ON u.id = d.mechanic_id
+     WHERE d.repair_job_id = $1
+     ORDER BY d.diagnosed_at DESC`,
+    [repairJobId]
+  );
+  return result.rows;
+}
+
 /** Danh sách việc của một thợ máy (task board) */
 async function getJobsForMechanic(mechanicId) {
   const result = await pool.query(
@@ -145,5 +157,5 @@ async function getJobsForMechanic(mechanicId) {
 
 module.exports = {
   findAll, findById, create, updateStatus,
-  assignMechanic, addDiagnosis, getJobsForMechanic,
+  assignMechanic, addDiagnosis, getJobsForMechanic, getDiagnosisHistory,
 };

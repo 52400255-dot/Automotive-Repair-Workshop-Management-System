@@ -60,10 +60,18 @@ async function diagnosis(req, res, next) {
   } catch (err) { next(err); }
 }
 
+/** Xem lịch sử chẩn đoán của một phiếu sửa chữa */
+async function diagnosisHistory(req, res, next) {
+  try {
+    const data = await jobService.getDiagnosisHistory(req.params.id);
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+}
+
 /** Mechanic Task Board — việc của chính thợ đăng nhập */
 async function myJobs(req, res, next) {
   try { res.json({ success: true, data: await jobService.getJobsForMechanic(req.user.id) }); }
   catch (err) { next(err); }
 }
 
-module.exports = { list, getById, create, updateStatus, assign, diagnosis, myJobs };
+module.exports = { list, getById, create, updateStatus, assign, diagnosis, myJobs, diagnosisHistory };
