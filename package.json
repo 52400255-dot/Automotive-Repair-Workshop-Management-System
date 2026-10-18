@@ -4,10 +4,10 @@
   "version": "1.0.0",
   "description": "Đồ án môn Công nghệ phần mềm — Hệ thống quản lý gara sửa chữa ô tô (Topic 12)",
   "scripts": {
-    "test": "node --test tests/unit/pricing.test.js",
+    "test": "node --test \"tests/unit/*.test.js\"",
     "test:integration": "node --test \"tests/integration/*.test.js\"",
     "test:all": "npm test && npm run test:integration",
-    "test:watch": "node --test --watch tests/unit/pricing.test.js",
+    "test:watch": "node --test --watch \"tests/unit/*.test.js\"",
     "dev:backend": "npm run dev --prefix backend",
     "dev:frontend": "npm run dev --prefix frontend",
     "db:up": "docker compose up -d db",

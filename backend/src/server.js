@@ -7,7 +7,9 @@
  *   services/   → logic nghiệp vụ + truy vấn database
  *   middleware/ → auth JWT, RBAC, validate, error handler
  */
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 const express = require('express');
 const cors = require('cors');
 
@@ -19,6 +21,7 @@ const repairJobRoutes = require('./routes/repairJob.routes');
 const sparePartRoutes = require('./routes/sparePart.routes');
 const estimateRoutes = require('./routes/estimate.routes');
 const invoiceRoutes = require('./routes/invoice.routes');
+const serviceRoutes = require('./routes/service.routes');
 const { errorHandler } = require('./middleware/errorHandler');
 const { testConnection } = require('./config/db');
 
@@ -34,9 +37,11 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/customers', customerRoutes);
 app.use('/api/v1/vehicles', vehicleRoutes);
 app.use('/api/v1/repair-jobs', repairJobRoutes);
+app.use('/api/v1/repairs', repairJobRoutes);
 app.use('/api/v1/spare-parts', sparePartRoutes);
 app.use('/api/v1/estimates', estimateRoutes);
 app.use('/api/v1/invoices', invoiceRoutes);
+app.use('/api/v1/services', serviceRoutes);
 
 // ---- 404 cho route không tồn tại ----
 app.use((req, res) => {

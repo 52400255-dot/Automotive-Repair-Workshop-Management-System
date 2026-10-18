@@ -57,7 +57,7 @@ export default function VehicleHistoryPage() {
   return (
     <div>
       <div className="page-header">
-        <h1>Lich su sua chua xe</h1>
+        <h1>Lịch sử sửa chữa xe</h1>
       </div>
 
       {notice && (
@@ -77,16 +77,16 @@ export default function VehicleHistoryPage() {
         }}
       >
         <div className="form-group" style={{ margin: 0, flex: 1, minWidth: 260 }}>
-          <label>Tim xe theo bien so, hang xe, dong xe hoac ten khach hang</label>
+          <label>Tìm xe theo biển số, hãng xe, dòng xe hoặc tên khách hàng</label>
           <input
             className="form-control"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            placeholder="Vi du: 51A-12345, Toyota, Nguyen Van An..."
+            placeholder="Ví dụ: 51A-12345, Toyota, Nguyễn Văn An..."
             aria-label="Từ khóa tìm xe"
           />
         </div>
-        <button className="btn btn-primary" type="submit">Tim xe</button>
+        <button className="btn btn-primary" type="submit">Tìm xe</button>
       </form>
 
       <div className="card" style={{ marginBottom: 16 }}>
@@ -94,21 +94,21 @@ export default function VehicleHistoryPage() {
           <table>
             <thead>
               <tr>
-                <th>Bien so</th><th>Hang / Dong xe</th><th>Khach hang</th>
-                <th>So phieu sua</th><th>Lan cuoi</th><th></th>
+                <th>Biển số xe</th><th>Hãng / Dòng xe</th><th>Khách hàng</th>
+                <th>Số phiếu sửa</th><th>Lần cuối tiếp nhận</th><th>Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {vehicles.map((v) => (
                 <tr key={v.id}>
-                  <td>{v.license_plate}</td>
+                  <td><strong>{v.license_plate}</strong></td>
                   <td>{v.brand} {v.model}</td>
                   <td>{v.customer_name}</td>
                   <td>{Number(v.job_count || 0)}</td>
                   <td>{v.last_received_at ? new Date(v.last_received_at).toLocaleString('vi-VN') : '—'}</td>
                   <td>
                     <button className="btn btn-outline" onClick={() => handleSelect(v)}>
-                      Xem lich su
+                      Xem lịch sử
                     </button>
                   </td>
                 </tr>
@@ -116,7 +116,7 @@ export default function VehicleHistoryPage() {
               {!vehicles.length && (
                 <tr>
                   <td colSpan={6}>
-                    {searched ? 'Khong tim thay xe nao khop tu khoa' : 'Chua co xe trong he thong'}
+                    {searched ? 'Không tìm thấy xe nào khớp từ khóa' : 'Chưa có xe trong hệ thống'}
                   </td>
                 </tr>
               )}
@@ -133,21 +133,21 @@ export default function VehicleHistoryPage() {
             &nbsp;·&nbsp; {selected.customer_name}
           </strong>
 
-          {loading && <p style={{ marginTop: 8 }}>Dang tai lich su...</p>}
+          {loading && <p style={{ marginTop: 8 }}>Đang tải lịch sử sửa chữa...</p>}
 
           <div className="table-wrapper" style={{ marginTop: 8 }}>
             <table>
               <thead>
                 <tr>
-                  <th>Ma phieu</th><th>Trang thai</th><th>Yeu cau khach hang</th>
-                  <th>Dich vu</th><th>Phu tung</th><th>Tho may</th>
-                  <th>Tiep nhan</th><th>Hoan thanh</th><th>Chi phi</th>
+                  <th>Mã phiếu</th><th>Trạng thái</th><th>Yêu cầu của khách</th>
+                  <th>Dịch vụ</th><th>Phụ tùng</th><th>Thợ máy</th>
+                  <th>Tiếp nhận</th><th>Hoàn thành</th><th>Chi phí</th>
                 </tr>
               </thead>
               <tbody>
                 {history.map((j) => (
                   <tr key={j.id}>
-                    <td>#{j.id}</td>
+                    <td><strong>#{j.id}</strong></td>
                     <td><StatusBadge status={j.status} /></td>
                     <td style={{ maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {j.customer_request || '—'}
@@ -164,7 +164,7 @@ export default function VehicleHistoryPage() {
                   </tr>
                 ))}
                 {!loading && !history.length && (
-                  <tr><td colSpan={9}>Xe nay chua co lich su sua chua</td></tr>
+                  <tr><td colSpan={9}>Xe này chưa có lịch sử sửa chữa</td></tr>
                 )}
               </tbody>
             </table>

@@ -6,10 +6,18 @@ const authService = require('../services/auth.service');
 async function login(req, res, next) {
   try {
     const { email, password } = req.body;
+    console.log(`[AUTH] Yêu cầu đăng nhập từ email: "${email}"`);
     const user = await authService.findByEmail(email);
-    if (!user || !(await authService.verifyPassword(password, user.password_hash))) {
+    if (!user) {
+      console.warn(`[AUTH] Đăng nhập thất bại: Không tìm thấy email "${email}" trong database`);
       return res.status(401).json({ success: false, message: 'Email hoặc mật khẩu không đúng' });
     }
+    const isValid = await authService.verifyPassword(password, user.password_hash);
+    if (!isValid) {
+      console.warn(`[AUTH] Đăng nhập thất bại: Mật khẩu không đúng cho email "${email}"`);
+      return res.status(401).json({ success: false, message: 'Email hoặc mật khẩu không đúng' });
+    }
+    console.log(`[AUTH] Đăng nhập thành công! User: ${user.full_name} (${user.role})`);
     const token = authService.generateToken(user);
     res.json({
       success: true,

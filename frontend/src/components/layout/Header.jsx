@@ -5,12 +5,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const ROLE_LABELS = {
-  customer: 'Khach hang',
-  receptionist: 'Le tan',
-  service_manager: 'Quan ly dich vu',
-  mechanic: 'Tho may',
-  warehouse_staff: 'Nhan vien kho',
-  admin: 'Quan tri',
+  customer: 'Khách hàng',
+  receptionist: 'Lễ tân',
+  service_manager: 'Quản lý dịch vụ',
+  mechanic: 'Thợ máy',
+  warehouse_staff: 'Nhân viên kho',
+  admin: 'Quản trị viên',
 };
 
 export default function Header() {
@@ -28,14 +28,14 @@ export default function Header() {
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: '0 24px',
     }}>
-      <strong>Automotive Repair Workshop Management</strong>
+      <strong>Hệ thống Quản lý Xưởng Sửa chữa Ô tô (Garage MS)</strong>
       {user && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span>
             {user.fullName}
             {' '}<em style={{ color: '#757575' }}>({ROLE_LABELS[user.role] || user.role})</em>
           </span>
-          <button className="btn btn-outline" onClick={handleLogout}>Dang xuat</button>
+          <button className="btn btn-outline" onClick={handleLogout}>Đăng xuất</button>
         </div>
       )}
     </header>

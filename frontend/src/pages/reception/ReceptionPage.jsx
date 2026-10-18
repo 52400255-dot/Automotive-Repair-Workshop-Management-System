@@ -1,102 +1,98 @@
 /**
- * ReceptionPage — Giao diện Lễ tân tiếp nhận xe (Vehicle Service Intake).
- * Bước 1: chọn khách hàng → 2: chọn xe → 3: ghi yêu cầu → tạo phiếu sửa chữa.
+ * ReceptionPage — Giao diện Lễ tân tiếp nhận xe (Vehicle Service Intake — US04).
+ * Quy trình:
+ *   1. Chọn khách hàng
+ *   2. Chọn xe của khách hàng
+ *   3. Nhập yêu cầu / triệu chứng ban đầu
+ *   4. Tùy chọn: Chọn trước các dịch vụ chuẩn
+ *   5. Gửi API tạo phiếu sửa chữa (kích hoạt Stored Procedure nguyên tử)
  */
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 
 export default function ReceptionPage() {
-  // 1. Quản lý State
   const [customers, setCustomers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [servicesList, setServicesList] = useState([]);
-  const [partsList, setPartsList] = useState([]);
+
   // Form State
   const [customerId, setCustomerId] = useState('');
   const [vehicleId, setVehicleId] = useState('');
   const [request, setRequest] = useState('');
   const [selectedServices, setSelectedServices] = useState([]);
-  const [selectedParts, setSelectedParts] = useState([]);
 
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState({ text: '', type: '' });
 
+  // Tải danh sách khách hàng và danh mục dịch vụ từ Backend
   useEffect(() => {
     api.get('/customers')
-    .then((r) => setCustomers(r.data.data))
-    .catch(() => {
-      //Mock data
-      setCustomers([
-        { id: 1, full_name: 'Nguyễn Văn A', phone: '0901234567'},
-        { id: 2, full_name: 'Trần Thị B', phone: '0987654321'}
-      ]);
-    });
+      .then((r) => setCustomers(r.data.data || []))
+      .catch((err) => setMessage({ text: 'Lỗi tải danh sách khách hàng: ' + (err.response?.data?.message || err.message), type: 'error' }));
 
-    // Tải danh mục Dịch Vụ
     api.get('/services')
-      .then((r) => setServicesList(r.data.data || r.data))
-      .catch(() => {
-        setServicesList([
-          { id: 1, name: 'Thay nhớt máy', price: 150000 },
-          { id: 2, name: 'Kiểm tra & Bảo dưỡng phanh', price: 200000 }
-        ]);
-      });
-
-      api.get('/inventory')
-        .then((r) => setPartsList(r.data.data || r.data))
-        .catch(() => {
-          setPartsList([
-            { id: 101, name: 'Nhớt Castrol 4L', price: 450000 },
-            { id: 102, name: 'Má phanh trước Toyota', price: 650000 }
-          ]);
-        });
+      .then((r) => setServicesList(r.data.data || []))
+      .catch((err) => setMessage({ text: 'Lỗi tải danh mục dịch vụ: ' + (err.response?.data?.message || err.message), type: 'error' }));
   }, []);
 
   // Khi chọn khách hàng → tải danh sách xe của người đó
   useEffect(() => {
-    if (!customerId) return;
+    if (!customerId) {
+      setVehicles([]);
+      setVehicleId('');
+      return;
+    }
     api.get(`/customers/${customerId}/vehicles`)
-    .then((r) => setVehicles(r.data.data))
-    .catch(() => {
-      setVehicles([
-        { id: 10, license_plate: '51H-123.45', brand: 'Toyota', model: 'Camry' },
-        { id: 11, license_plate: '29A-678.90', brand: 'Honda', model: 'Civic' }
-      ]);
-    });
+      .then((r) => setVehicles(r.data.data || []))
+      .catch((err) => setMessage({ text: 'Lỗi tải danh sách xe: ' + (err.response?.data?.message || err.message), type: 'error' }));
   }, [customerId]);
 
-  /** Đổi khách hàng thì reset xe đã chọn (xử lý trong event handler, không làm trong effect) */
   function handleCustomerChange(value) {
     setCustomerId(value);
     setVehicleId('');
     setVehicles([]);
   }
 
+  function toggleService(serviceId) {
+    if (selectedServices.includes(serviceId)) {
+      setSelectedServices(selectedServices.filter((id) => id !== serviceId));
+    } else {
+      setSelectedServices([...selectedServices, serviceId]);
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
-    setMessage('');
+    setMessage({ text: '', type: '' });
     setLoading(true);
 
-    const payLoad = {
-      customerId,
-      vehicleId,
+    const payload = {
+      vehicleId: Number(vehicleId),
       customerRequest: request,
-      services: selectedServices,
-      parts: selectedParts
+      serviceItems: selectedServices.map((id) => ({
+        serviceId: Number(id),
+        quantity: 1,
+      })),
     };
 
     try {
-      const res = await api.post('/repair-jobs',payLoad);
-      setMessage(`Tao phieu sua chua #${res.data.data?.id || 'thanh cong'}`);
+      const res = await api.post('/repair-jobs', payload);
+      const createdJob = res.data.data;
+      setMessage({
+        text: `Tạo phiếu sửa chữa thành công #${createdJob?.id}! Trạng thái: Chờ phân công kỹ thuật viên.`,
+        type: 'success',
+      });
 
-      //Reset form sau khi gui thanh cong
+      // Reset form sau khi gửi thành công
       handleCustomerChange('');
       setRequest('');
       setSelectedServices([]);
-      setSelectedParts([]);
     } catch (err) {
-      setMessage(err.response?.data?.message || 'Loi tao phieu sua chua');
-    } finally { 
+      setMessage({
+        text: err.response?.data?.message || 'Lỗi khi tạo phiếu sửa chữa',
+        type: 'error',
+      });
+    } finally {
       setLoading(false);
     }
   }
@@ -104,112 +100,139 @@ export default function ReceptionPage() {
   return (
     <div>
       <div className="page-header">
-        <h1>Tiep nhan xe & Tao phieu sua chua</h1>
+        <h1>Tiếp nhận xe & Tạo phiếu sửa chữa (US04)</h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="card" style={{ maxWidth: 650 }}>
-        {message && (
-          <p style={{ color: message.startsWith('Tao') ? 'var(--success)' : 'var(--error)', marginBottom: 12, fontWeight: 'bold' }}>
-            {message}
-          </p>
+      <form onSubmit={handleSubmit} className="card" style={{ maxWidth: 700 }}>
+        {message.text && (
+          <div
+            style={{
+              padding: '12px 16px',
+              borderRadius: '6px',
+              marginBottom: 16,
+              fontWeight: 600,
+              backgroundColor: message.type === 'success' ? '#f6ffed' : '#fff2f0',
+              border: `1px solid ${message.type === 'success' ? '#b7eb8f' : '#ffccc7'}`,
+              color: message.type === 'success' ? '#389e0d' : '#cf1322',
+            }}
+          >
+            {message.text}
+          </div>
         )}
 
-        {/*1. Chọn Khách hàng */}
+        {/* 1. Chọn Khách hàng */}
         <div className="form-group">
-          <label>1. Khach hang (*)</label>
-          <select 
+          <label style={{ fontWeight: 600 }}>1. Khách hàng (*)</label>
+          <select
             className="form-control"
             value={customerId}
-            onChange={(e) => handleCustomerChange(e.target.value)} 
+            onChange={(e) => handleCustomerChange(e.target.value)}
             required
           >
-            <option value="">-- Chon khach hang --</option>
-            {customers.map((c) =>(
-               <option key={c.id} value={c.id}>{c.full_name} — {c.phone}</option>
+            <option value="">-- Chọn khách hàng --</option>
+            {customers.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.full_name} — SĐT: {c.phone} {c.email ? `(${c.email})` : ''}
+              </option>
             ))}
           </select>
         </div>
-        
-        {/*2. Chọn Xe */}
+
+        {/* 2. Chọn Xe */}
         <div className="form-group">
-          <label>2. Xe (*)</label>
+          <label style={{ fontWeight: 600 }}>2. Phương tiện (*)</label>
           <select
-              className="form-control"
-              value={vehicleId}
-              onChange={(e) => setVehicleId(e.target.value)} disabled={!customerId}
-              required
+            className="form-control"
+            value={vehicleId}
+            onChange={(e) => setVehicleId(e.target.value)}
+            disabled={!customerId}
+            required
           >
-            <option value="">-- Chon xe --</option>
+            <option value="">
+              {!customerId ? '-- Vui lòng chọn khách hàng trước --' : '-- Chọn xe cần tiếp nhận --'}
+            </option>
             {vehicles.map((v) => (
-              <option key={v.id} value={v.id}>{v.license_plate} — {v.brand} {v.model}</option>
+              <option key={v.id} value={v.id}>
+                {v.license_plate} — {v.brand} {v.model} ({v.manufacture_year || 'N/A'})
+              </option>
             ))}
           </select>
+          {customerId && vehicles.length === 0 && (
+            <small style={{ color: '#fa8c16', display: 'block', marginTop: 4 }}>
+              Khách hàng này chưa có xe trong hệ thống.
+            </small>
+          )}
         </div>
 
         {/* 3. Mô tả yêu cầu */}
         <div className="form-group">
-          <label>3. Yeu cau / mo ta cua khach (*)</label>
+          <label style={{ fontWeight: 600 }}>3. Yêu cầu / Mô tả triệu chứng từ khách (*)</label>
           <textarea
             className="form-control"
             rows={4}
             value={request}
             onChange={(e) => setRequest(e.target.value)}
-            placeholder="Vi du: xe khoi dong kem, co tieng loc coc khi thang du..."
+            placeholder="Ví dụ: Xe khởi động khó, có tiếng kêu rít ở bánh trước khi rà phanh, đèn báo dầu nhấp nháy..."
             required
           />
         </div>
 
-        {/* 4. Chọn Dịch vụ & Phụ tùng */}
+        {/* 4. Chọn Dịch vụ tiếp nhận ban đầu */}
         <div className="form-group">
-          <label>4. Chon Dich vu & Phu tung su dung (Neu co)</label>
-          <div style={{ display: 'flex', gap: '20px', marginTop: '8px'}}>
-
-            {/* Cột Dịch Vụ */}
-            <div style={{ flex: 1, border: '1px solid #ddd', padding: '10px', borderRadius: '4px'}}>
-              <strong>Dich vu:</strong>
-              {servicesList.map((s) => (
-                <div key={s.id} style={{ marginTop: '5px'}}>
-                  <label>
+          <label style={{ fontWeight: 600 }}>4. Dịch vụ ban đầu dự kiến (Tùy chọn)</label>
+          <div
+            style={{
+              border: '1px solid #d9d9d9',
+              borderRadius: '6px',
+              padding: '12px',
+              maxHeight: '220px',
+              overflowY: 'auto',
+              background: '#fafafa',
+            }}
+          >
+            {servicesList.length === 0 ? (
+              <span style={{ color: '#8c8c8c' }}>Chưa có dịch vụ trong danh mục.</span>
+            ) : (
+              servicesList.map((s) => (
+                <div
+                  key={s.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '6px 0',
+                    borderBottom: '1px solid #f0f0f0',
+                  }}
+                >
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', margin: 0 }}>
                     <input
                       type="checkbox"
                       value={s.id}
                       checked={selectedServices.includes(s.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) setSelectedServices([...selectedServices, s.id]);
-                        else setSelectedServices(selectedServices.filter((id) => id !== s.id));
-                      }}
-                    /> {s.name}
+                      onChange={() => toggleService(s.id)}
+                    />
+                    <span>
+                      <strong>{s.service_name}</strong>
+                      {s.description && <span style={{ color: '#888', fontSize: '13px' }}> — {s.description}</span>}
+                    </span>
                   </label>
+                  <span style={{ fontWeight: 600, color: '#1890ff', whiteSpace: 'nowrap', marginLeft: 12 }}>
+                    {Number(s.standard_price).toLocaleString('vi-VN')} đ
+                  </span>
                 </div>
-              ))};
-            </div>
-
-            {/* Cột Phụ Tùng */}
-            <div style={{ flex: 1, border: '1px solid #ddd', padding: '10px', borderRadius: '4px'}}>
-              <strong>Phu tung:</strong>
-              {partsList.map((p) => (
-                <div key={p.id} style={{ marginTop: '5px'}}>
-                  <label>
-                    <input
-                      type="checkbox"
-                      value={p.id}
-                      checked={selectedServices.includes(p.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) setSelectedServices([...selectedServices, p.id]);
-                        else setSelectedServices(selectedServices.filter((id) => id !== p.id));
-                      }}
-                    /> {p.name}
-                  </label>
-                </div>
-              ))};
-            </div>
-
+              ))
+            )}
           </div>
         </div>
-        
+
         {/* Nút Submit */}
-        <button className="btn btn-primary" disabled={loading} style={{ marginTop: '16px'}}>
-          {loading ? 'Dang tao phieu...' : 'Tao phieu sua chua'}
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={loading || !customerId || !vehicleId}
+          style={{ marginTop: '16px', padding: '10px 24px', fontSize: '15px' }}
+        >
+          {loading ? 'Đang tạo phiếu...' : 'Tiếp nhận xe & Tạo phiếu'}
         </button>
       </form>
     </div>
