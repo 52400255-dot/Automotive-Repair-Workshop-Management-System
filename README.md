@@ -8,10 +8,10 @@ sửa chữa (trừ kho phụ tùng) → hóa đơn → thanh toán.
 
 | Thành viên | MSSV | Vai trò |
 |---|---|---|
-| Duong Dinh Duc | 52400109 | Trưởng nhóm — Frontend Lead (M1) |
-| Luu Nhat Quang | 52400229 | Backend API & Services Lead (M2) |
-| Phung Nguyen Hoang Khoi | 52400206 | Database & Security Lead (M3) |
-| Tang Duy Viet | 52400255 | QA & Testing Lead (M4) |
+| Dương Đình Đức | 52400109 | Trưởng nhóm — Frontend Lead (M1) |
+| Lưu Nhật Quang | 52400229 | Backend API & Services Lead (M2) |
+| Phùng Nguyễn Hoàng Khôi | 52400206 | Database & Security Lead (M3) |
+| Tăng Duy Việt | 52400255 | QA & Testing Lead (M4) |
 
 ## Công nghệ
 

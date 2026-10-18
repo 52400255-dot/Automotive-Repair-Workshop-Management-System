@@ -60,17 +60,23 @@ async function diagnosis(req, res, next) {
   } catch (err) { next(err); }
 }
 
+/** Xem lịch sử chẩn đoán của một phiếu sửa chữa */
+async function diagnosisHistory(req, res, next) {
+  try {
+    const data = await jobService.getDiagnosisHistory(req.params.id);
+    res.json({ success: true, data });
+  } catch (err) { next(err); }
+}
+
 /** Mechanic Task Board — việc của chính thợ đăng nhập */
 async function myJobs(req, res, next) {
   try { res.json({ success: true, data: await jobService.getJobsForMechanic(req.user.id, req.query.status) }); }
   catch (err) { next(err); }
 }
-
-/** Danh sách thợ máy cho lễ tân / quản lý phân công */
 async function getMechanics(req, res, next) {
   try { res.json({ success: true, data: await jobService.getMechanics() }); }
   catch (err) { next(err); }
 }
 
 module.exports = { list, getById, create, updateStatus, assign, diagnosis, myJobs, getMechanics };
-
+module.exports = { list, getById, create, updateStatus, assign, diagnosis, myJobs, diagnosisHistory };

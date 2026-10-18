@@ -152,7 +152,6 @@ async function addDiagnosis({ repairJobId, mechanicId, diagnosisResult, repairSu
   }
 }
 
-/** Danh sách việc của một thợ máy (task board) kèm thông tin chẩn đoán nếu đã ghi */
 async function getJobsForMechanic(mechanicId, status) {
   let innerQuery = `
     SELECT DISTINCT ON (rj.id)
@@ -188,6 +187,20 @@ async function getJobsForMechanic(mechanicId, status) {
 
 /** Lấy danh sách kỹ thuật viên (mechanics) phục vụ phân công */
 async function getMechanics() {
+async function getDiagnosisHistory(repairJobId) {
+  const result = await pool.query(
+    `SELECT d.*, u.full_name AS mechanic_name
+     FROM diagnoses d
+     JOIN users u ON u.id = d.mechanic_id
+     WHERE d.repair_job_id = $1
+     ORDER BY d.diagnosed_at DESC`,
+    [repairJobId]
+  );
+  return result.rows;
+}
+
+/** Danh sách việc của một thợ máy (task board) */
+async function getJobsForMechanic(mechanicId) {
   const result = await pool.query(
     `SELECT id, full_name, email FROM users WHERE role = 'mechanic' ORDER BY full_name ASC`
   );
@@ -197,5 +210,6 @@ async function getMechanics() {
 module.exports = {
   findAll, findById, create, updateStatus,
   assignMechanic, addDiagnosis, getJobsForMechanic, getMechanics,
+  assignMechanic, addDiagnosis, getJobsForMechanic, getDiagnosisHistory,
 };
 
