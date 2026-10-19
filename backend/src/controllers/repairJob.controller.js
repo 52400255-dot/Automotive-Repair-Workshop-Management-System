@@ -78,5 +78,4 @@ async function getMechanics(req, res, next) {
   catch (err) { next(err); }
 }
 
-module.exports = { list, getById, create, updateStatus, assign, diagnosis, myJobs, getMechanics };
-module.exports = { list, getById, create, updateStatus, assign, diagnosis, myJobs, diagnosisHistory };
+module.exports = { list, getById, create, updateStatus, assign, diagnosis, myJobs, getMechanics, diagnosisHistory };
