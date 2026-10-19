@@ -62,6 +62,17 @@ function errorHandler(err, req, res, next) {
     });
   }
 
+  if (err.code === '23503') {
+    return res.status(req.method === 'DELETE' ? 409 : 404).json({ success: false,
+      message: req.method === 'DELETE' ? 'Dữ liệu đang được tham chiếu, không thể xóa' : 'Dữ liệu tham chiếu không tồn tại' });
+  }
+  if (['23502', '23514', '22P02', '22003', '22001'].includes(err.code)) {
+    return res.status(400).json({ success: false, message: 'Dữ liệu không hợp lệ hoặc vượt giới hạn' });
+  }
+  if (err.code === 'P0001' && /^service_id .* does not exist$/.test(err.message)) {
+    return res.status(404).json({ success: false, message: 'Không tìm thấy dịch vụ' });
+  }
+
   // ── Lỗi chung — trả về 500 Internal Server Error
   const statusCode = err.statusCode || 500;
   return res.status(statusCode).json({

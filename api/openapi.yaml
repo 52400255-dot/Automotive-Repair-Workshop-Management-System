@@ -96,7 +96,50 @@ paths:
             schema: { $ref: '#/components/schemas/CustomerInput' }
       responses:
         '201': { description: Đã tạo khách hàng }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /customers/{id}:
+    parameters:
+      - { $ref: '#/components/parameters/IdPath' }
+    get:
+      tags: [Customers]
+      summary: Chi tiết khách hàng
+      operationId: getCustomer
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Khách hàng trong data của response success }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Customers]
+      summary: Cập nhật các trường được gửi (receptionist/admin)
+      operationId: updateCustomer
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerUpdate' }
+      responses:
+        '200': { description: Khách hàng sau cập nhật trong data }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Customers]
+      summary: Xóa khách hàng (admin)
+      operationId: deleteCustomer
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: success và message xác nhận đã xóa }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
 
   /customers/{id}/vehicles:
     get:
@@ -140,6 +183,99 @@ paths:
                   data:
                     type: array
                     items: { $ref: '#/components/schemas/Vehicle' }
+    post:
+      tags: [Vehicles]
+      summary: Tạo xe (receptionist/admin)
+      operationId: createVehicle
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VehicleInput' }
+      responses:
+        '201': { description: Xe mới trong data của response success }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /vehicles/{id}:
+    parameters:
+      - { $ref: '#/components/parameters/IdPath' }
+    get:
+      tags: [Vehicles]
+      summary: Chi tiết xe
+      operationId: getVehicle
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Xe trong data của response success }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Vehicles]
+      summary: Cập nhật các trường được gửi (receptionist/admin)
+      operationId: updateVehicle
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VehicleUpdate' }
+      responses:
+        '200': { description: Xe sau cập nhật trong data }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Vehicles]
+      summary: Xóa xe (admin)
+      operationId: deleteVehicle
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: success và message xác nhận đã xóa }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /vehicles/receive:
+    post:
+      tags: [RepairJobs]
+      summary: Alias tiếp nhận xe của POST /repair-jobs (receptionist)
+      operationId: receiveVehicle
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReceptionInput' }
+      responses:
+        '201': { description: Phiếu mới pending trong data, cùng hành vi POST /repair-jobs }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /vehicles/{id}/receive:
+    post:
+      tags: [RepairJobs]
+      summary: Tiếp nhận xe theo ID trên URL (receptionist)
+      description: Dùng chung validation và service với POST /repair-jobs; ID trên URL thay vehicleId trong body.
+      operationId: receiveVehicleById
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReceptionDetails' }
+      responses:
+        '201': { description: Phiếu mới pending trong data }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /vehicles/{id}/repair-history:
     get:
@@ -196,18 +332,18 @@ paths:
     post:
       tags: [RepairJobs]
       summary: Lễ tân tiếp nhận xe, tạo phiếu sửa (US04, US05)
+      description: >
+        customerRequest bắt buộc là chuỗi có nội dung sau trim. serviceItems có thể bỏ qua hoặc là mảng rỗng.
+        Một phần tử dịch vụ sai làm từ chối toàn bộ yêu cầu; không bỏ qua phần tử lỗi hoặc đổi quantity=0 thành 1.
+        Xe/dịch vụ không tồn tại trả 404. Stored function tạo phiếu và dịch vụ nguyên tử, không để phiếu dở dang.
+        Router /repairs là alias hiện hữu của /repair-jobs, dùng chung validation và service.
       operationId: createRepairJob
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              required: [vehicleId]
-              properties:
-                vehicleId: { type: integer, format: int64 }
-                customerRequest: { type: string }
+            schema: { $ref: '#/components/schemas/ReceptionInput' }
       responses:
         '201':
           description: Phiếu sửa đã tạo (status = pending)
@@ -217,11 +353,33 @@ paths:
                 type: object
                 properties:
                   data: { $ref: '#/components/schemas/RepairJob' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /repair-jobs/{id}:
+    get:
+      tags: [RepairJobs]
+      summary: Chi tiết phiếu, thợ phụ trách và chẩn đoán mới nhất
+      description: >
+        Thợ phụ trách lấy theo assigned_at DESC, id DESC; chẩn đoán lấy theo diagnosed_at DESC, id DESC.
+        Các bản ghi cũ vẫn được giữ làm lịch sử.
+      operationId: getRepairJob
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      responses:
+        '200': { description: Phiếu trong data của response success }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /repair-jobs/my-jobs:
     get:
       tags: [RepairJobs]
-      summary: Việc của thợ máy đang đăng nhập (US08)
+      summary: Việc của thợ máy đang đăng nhập (hỗ trợ US06–07)
+      description: >
+        Chỉ trả phiếu có bản phân công mới nhất thuộc thợ đăng nhập (assigned_at DESC, id DESC).
+        Thợ cũ không còn thấy phiếu sau phân công lại. Mỗi phiếu xuất hiện một lần, kèm chẩn đoán mới nhất.
       operationId: getMyJobs
       security: [{ bearerAuth: [] }]
       responses:
@@ -264,6 +422,12 @@ paths:
     put:
       tags: [RepairJobs]
       summary: Phân công thợ máy (US07)
+      description: >
+        Lễ tân hoặc quản lý dịch vụ phân công/phân công lại khi phiếu pending hoặc diagnosing.
+        mechanicId phải trỏ đến người dùng có role mechanic. Gán lại thợ hiện tại trả bản phân công hiện tại, không ghi trùng.
+        Phân công đầu tiên chuyển pending sang diagnosing; phân công lại giữ diagnosing.
+        Bản mới nhất theo assigned_at DESC, id DESC là thợ phụ trách; bản cũ giữ làm lịch sử.
+        Kiểm tra và ghi dưới khóa hàng phiếu trong một transaction.
       operationId: assignMechanic
       security: [{ bearerAuth: [] }]
       parameters:
@@ -276,15 +440,51 @@ paths:
               type: object
               required: [mechanicId]
               properties:
-                mechanicId: { type: integer, format: int64 }
+                mechanicId: { $ref: '#/components/schemas/PositiveId' }
       responses:
-        '200': { description: Đã phân công, phiếu chuyển sang diagnosing }
+        '200': { description: Bản phân công trong data; phiếu đang diagnosing }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /repair-jobs/assign:
+    put:
+      tags: [RepairJobs]
+      summary: Alias phân công với repairJobId trong body
+      description: Dùng chung validation và service với PUT /repair-jobs/{id}/assign. Cũng chấp nhận repair_job_id hoặc jobId thay repairJobId.
+      operationId: assignMechanicByBody
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mechanicId]
+              anyOf:
+                - required: [repairJobId]
+                - required: [repair_job_id]
+                - required: [jobId]
+              properties:
+                repairJobId: { $ref: '#/components/schemas/PositiveId' }
+                repair_job_id: { $ref: '#/components/schemas/PositiveId' }
+                jobId: { $ref: '#/components/schemas/PositiveId' }
+                mechanicId: { $ref: '#/components/schemas/PositiveId' }
+      responses:
+        '200': { description: Bản phân công trong data }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
 
   /repair-jobs/{id}/diagnosis:
     put:
       tags: [RepairJobs]
       summary: Thợ máy ghi nhận chẩn đoán (US06)
+      description: >
+        Chỉ thợ đang phụ trách được ghi khi phiếu diagnosing. Khóa hàng phiếu trong transaction trước khi kiểm tra và ghi.
+        Mỗi lần lưu tạo một bản lịch sử, giữ nguyên trạng thái diagnosing; hiển thị bản mới nhất theo diagnosed_at DESC, id DESC.
       operationId: saveDiagnosis
       security: [{ bearerAuth: [] }]
       parameters:
@@ -297,15 +497,24 @@ paths:
               type: object
               required: [diagnosisResult]
               properties:
-                diagnosisResult: { type: string }
-                repairSuggestion: { type: string }
+                diagnosisResult: { type: string, minLength: 1, pattern: '\S' }
+                repairSuggestion: { type: [string, 'null'] }
       responses:
         '201': { description: Đã lưu chẩn đoán }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
 
   /repair-jobs/{id}/status:
     put:
       tags: [RepairJobs]
-      summary: Cập nhật trạng thái phiếu sửa (US09)
+      summary: Cập nhật trạng thái phiếu sửa (endpoint hiện hữu)
+      description: >
+        Lễ tân/quản lý dịch vụ có quyền cập nhật; thợ phải là thợ đang phụ trách.
+        Chuỗi chuyển hợp lệ là pending → diagnosing → estimated → approved → in_repair → completed;
+        mọi trạng thái chưa kết thúc có thể chuyển cancelled. Gửi lại cùng trạng thái hợp lệ không tạo thay đổi.
+        Kiểm tra và cập nhật dưới khóa hàng phiếu; completed và cancelled không được chuyển sang trạng thái khác.
       operationId: updateJobStatus
       security: [{ bearerAuth: [] }]
       parameters:
@@ -321,6 +530,10 @@ paths:
                 status: { $ref: '#/components/schemas/JobStatus' }
       responses:
         '200': { description: Đã cập nhật }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
 
   /spare-parts:
     get:
@@ -554,21 +767,79 @@ components:
       in: path
       name: id
       required: true
-      schema: { type: integer, format: int64 }
+      schema: { type: integer, minimum: 1, maximum: 9007199254740991 }
 
   responses:
+    BadRequest:
+      description: Sai kiểu, thiếu trường bắt buộc, chuỗi trắng, ID/số lượng ngoài giới hạn hoặc người nhận phân công không phải thợ
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Đối tượng hoặc dữ liệu được tham chiếu không tồn tại
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Trùng dữ liệu, xóa đối tượng đang được tham chiếu hoặc trạng thái không cho phép thao tác
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
     Unauthorized:
       description: Chưa đăng nhập / token hết hạn
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
     Forbidden:
-      description: Sai phân quyền (RBAC)
+      description: Sai phân quyền (RBAC) hoặc thợ không phải người đang phụ trách phiếu
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
 
   schemas:
+    PositiveId:
+      description: Số nguyên dương an toàn (1–9007199254740991); chấp nhận cả chuỗi chỉ chứa chữ số có giá trị trong cùng giới hạn.
+      oneOf:
+        - { type: integer, minimum: 1, maximum: 9007199254740991 }
+        - { type: string, pattern: '^0*[1-9][0-9]*$' }
+
+    ReceptionDetails:
+      type: object
+      required: [customerRequest]
+      properties:
+        customerRequest: { type: string, minLength: 1, pattern: '\S' }
+        serviceItems:
+          type: array
+          description: >
+            Bỏ qua tương đương mảng rỗng; null hoặc kiểu khác bị từ chối. Chấp nhận ID đơn hoặc object.
+            Object cũng chấp nhận service_id hoặc id thay serviceId. quantity mặc định 1 chỉ khi không được gửi;
+            nếu gửi thì phải chuyển thành số hữu hạn lớn hơn 0, tối đa 9999999999.99. Chuỗi số được chấp nhận.
+          items:
+            oneOf:
+              - { $ref: '#/components/schemas/PositiveId' }
+              - type: object
+                anyOf:
+                  - required: [serviceId]
+                  - required: [service_id]
+                  - required: [id]
+                properties:
+                  serviceId: { $ref: '#/components/schemas/PositiveId' }
+                  service_id: { $ref: '#/components/schemas/PositiveId' }
+                  id: { $ref: '#/components/schemas/PositiveId' }
+                  quantity:
+                    default: 1
+                    oneOf:
+                      - { type: number, exclusiveMinimum: 0, maximum: 9999999999.99 }
+                      - { type: string, description: Chuỗi biểu diễn số hữu hạn trong cùng giới hạn }
+
+    ReceptionInput:
+      allOf:
+        - { $ref: '#/components/schemas/ReceptionDetails' }
+        - type: object
+          required: [vehicleId]
+          properties:
+            vehicleId: { $ref: '#/components/schemas/PositiveId' }
+
     Error:
       type: object
       properties:
@@ -589,29 +860,58 @@ components:
       type: object
       properties:
         id: { type: integer, format: int64 }
-        userId: { type: [integer, 'null'], format: int64 }
-        fullName: { type: string }
+        user_id: { type: [integer, 'null'], format: int64 }
+        full_name: { type: string }
         phone: { type: string }
         email: { type: [string, 'null'], format: email }
 
     CustomerInput:
       type: object
       required: [fullName, phone]
+      description: Chuỗi được trim trước khi lưu; fullName và phone không được trắng. email nếu gửi phải là chuỗi có nội dung hoặc null.
       properties:
-        userId: { type: integer, format: int64 }
-        fullName: { type: string }
-        phone: { type: string }
-        email: { type: string, format: email }
+        userId:
+          anyOf:
+            - { $ref: '#/components/schemas/PositiveId' }
+            - { type: 'null' }
+        fullName: { type: string, minLength: 1, maxLength: 150, pattern: '\S' }
+        phone: { type: string, minLength: 1, maxLength: 20, pattern: '\S' }
+        email: { type: [string, 'null'], minLength: 1, maxLength: 255, pattern: '\S' }
+
+    CustomerUpdate:
+      type: object
+      description: Chỉ cập nhật trường được gửi; email null giữ nguyên giá trị hiện hữu. Không thay liên kết userId.
+      properties:
+        fullName: { type: string, minLength: 1, maxLength: 150, pattern: '\S' }
+        phone: { type: string, minLength: 1, maxLength: 20, pattern: '\S' }
+        email: { type: [string, 'null'], minLength: 1, maxLength: 255, pattern: '\S' }
+
+    VehicleInput:
+      allOf:
+        - { $ref: '#/components/schemas/VehicleUpdate' }
+        - type: object
+          required: [customerId, licensePlate, brand, model]
+          properties:
+            customerId: { $ref: '#/components/schemas/PositiveId' }
+
+    VehicleUpdate:
+      type: object
+      description: Chuỗi được trim; chỉ cập nhật trường được gửi. manufactureYear null giữ nguyên giá trị hiện hữu. Không đổi customerId.
+      properties:
+        licensePlate: { type: string, minLength: 1, maxLength: 20, pattern: '\S' }
+        brand: { type: string, minLength: 1, maxLength: 100, pattern: '\S' }
+        model: { type: string, minLength: 1, maxLength: 100, pattern: '\S' }
+        manufactureYear: { type: [integer, 'null'], minimum: 1, maximum: 9999 }
 
     Vehicle:
       type: object
       properties:
         id: { type: integer, format: int64 }
-        customerId: { type: integer, format: int64 }
-        licensePlate: { type: string, examples: ['51A-12345'] }
+        customer_id: { type: integer, format: int64 }
+        license_plate: { type: string, examples: ['51A-12345'] }
         brand: { type: string, examples: ['Toyota'] }
         model: { type: string, examples: ['Vios'] }
-        manufactureYear: { type: [integer, 'null'] }
+        manufacture_year: { type: [integer, 'null'] }
 
     JobStatus:
       type: string
@@ -621,14 +921,19 @@ components:
       type: object
       properties:
         id: { type: integer, format: int64 }
-        vehicleId: { type: integer, format: int64 }
-        receptionistId: { type: integer, format: int64 }
-        customerRequest: { type: [string, 'null'] }
+        vehicle_id: { type: integer, format: int64 }
+        receptionist_id: { type: integer, format: int64 }
+        customer_request: { type: [string, 'null'] }
         status: { $ref: '#/components/schemas/JobStatus' }
-        receivedAt: { type: string, format: date-time }
-        completedAt: { type: [string, 'null'], format: date-time }
-        licensePlate: { type: string }
-        customerName: { type: string }
+        received_at: { type: string, format: date-time }
+        completed_at: { type: [string, 'null'], format: date-time }
+        license_plate: { type: string }
+        customer_name: { type: string }
+        mechanic_id: { type: [integer, 'null'], format: int64 }
+        mechanic_name: { type: [string, 'null'] }
+        diagnosis_result: { type: [string, 'null'] }
+        repair_suggestion: { type: [string, 'null'] }
+        diagnosed_at: { type: [string, 'null'], format: date-time }
 
     SparePart:
       type: object

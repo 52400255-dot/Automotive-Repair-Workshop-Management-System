@@ -150,6 +150,7 @@ export default function TaskBoardPage() {
               {/* Thợ có thể cập nhật chẩn đoán khi đang diagnosing hoặc bất kỳ lúc nào cần bổ sung */}
               <button
                 className="btn btn-outline"
+                disabled={j.status !== 'diagnosing' || submitting}
                 onClick={() => openDiagnosis(j)}
                 style={{ fontSize: '13px' }}
               >

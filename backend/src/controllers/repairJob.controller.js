@@ -19,7 +19,7 @@ async function getById(req, res, next) {
 /** Lễ tân tiếp nhận xe → tạo Repair Job kèm hạng mục dịch vụ */
 async function create(req, res, next) {
   try {
-    const { vehicleId, customerRequest, serviceItems } = req.body;
+    const { vehicleId, customerRequest, serviceItems } = req.body || {};
     const created = await jobService.create({
       vehicleId, customerRequest, serviceItems, receptionistId: req.user.id,
     });
@@ -29,7 +29,7 @@ async function create(req, res, next) {
 
 async function updateStatus(req, res, next) {
   try {
-    const updated = await jobService.updateStatus(req.params.id, req.body.status);
+    const updated = await jobService.updateStatus(req.params.id, req.body?.status, req.user);
     if (!updated) return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu sửa chữa' });
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }
@@ -40,7 +40,7 @@ async function assign(req, res, next) {
   try {
     const assignment = await jobService.assignMechanic({
       repairJobId: req.params.id,
-      mechanicId: req.body.mechanicId,
+      mechanicId: req.body?.mechanicId,
       assignedBy: req.user.id,
     });
     res.json({ success: true, data: assignment });
@@ -53,8 +53,8 @@ async function diagnosis(req, res, next) {
     const saved = await jobService.addDiagnosis({
       repairJobId: req.params.id,
       mechanicId: req.user.id,
-      diagnosisResult: req.body.diagnosisResult,
-      repairSuggestion: req.body.repairSuggestion,
+      diagnosisResult: req.body?.diagnosisResult,
+      repairSuggestion: req.body?.repairSuggestion,
     });
     res.status(201).json({ success: true, data: saved });
   } catch (err) { next(err); }

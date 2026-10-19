@@ -1,8 +1,10 @@
 # Automotive Repair Workshop Management System
 
-Đồ án môn **Công nghệ phần mềm (504011)** — ĐH Tôn Đức Thắng, Topic 12.
-Hệ thống web quản lý quy trình sửa chữa ô tô: tiếp nhận xe → chẩn đoán → báo giá →
-sửa chữa (trừ kho phụ tùng) → hóa đơn → thanh toán.
+Đồ án môn **Công nghệ phần mềm (504011)** — ĐH Tôn Đức Thắng, Topic 12.  
+Hệ thống web quản lý toàn bộ quy trình sửa chữa ô tô:  
+**tiếp nhận xe → phân công thợ → chẩn đoán → báo giá → sửa chữa (trừ kho phụ tùng) → hóa đơn → thanh toán**.
+
+---
 
 ## Thành viên
 
@@ -13,95 +15,264 @@ sửa chữa (trừ kho phụ tùng) → hóa đơn → thanh toán.
 | Phung Nguyen Hoang Khoi | 52400206 | Database & Security Lead (M3) |
 | Tang Duy Viet | 52400255 | QA & Testing Lead (M4) |
 
+---
+
 ## Công nghệ
 
-- **Frontend:** React 19 + Vite + React Router + Axios
-- **Backend:** Node.js + Express 5 (kiến trúc routes → controllers → services)
-- **Database:** PostgreSQL 16 (parameterized query, transaction, FK/CHECK)
-- **Auth:** JWT + RBAC 6 vai trò, bcrypt password hash
-- **API Contract:** OpenAPI 3.1 — `api/openapi.yaml`
-- **Testing:** Node.js built-in test runner (unit), Playwright (E2E — sprint 7)
-- **CI/CD:** GitHub Actions — lint, build, test, migration smoke test
-- **Container:** Docker Compose (db + backend + frontend)
+| Tầng | Công nghệ |
+|---|---|
+| **Frontend** | React 19 + Vite + React Router 7 + Axios |
+| **Backend** | Node.js 22 + Express 5 (routes → controllers → services) |
+| **Database** | PostgreSQL 16 — 15 migrations, parameterized query, transaction, FK/CHECK |
+| **Auth** | JWT (HS256) + RBAC 6 vai trò, bcrypt password hash |
+| **API Contract** | OpenAPI 3.1 — `api/openapi.yaml` |
+| **Testing** | Node.js built-in test runner — 46 unit tests + 10 integration tests |
+| **Container** | Docker Compose 3 dịch vụ: `db` + `backend` + `frontend` |
+| **CI/CD** | GitHub Actions — lint, build, unit test, migration smoke test |
+
+---
+
+## Trạng thái Sprint (Sprint 3 / Tuần 3)
+
+| Sprint | Tuần | Nội dung | Trạng thái |
+|---|---|---|---|
+| 1 | 1 | Nền tảng: requirements, kiến trúc, Auth (US16, US17) | ✅ Hoàn thành |
+| 2 | 2 | Khách hàng & xe (US01, US02, US03) | ✅ Hoàn thành |
+| **3** | **3** | **Tiếp nhận, phân công, chẩn đoán (US04, US06, US07, US08)** | ✅ **Hoàn thành** |
+| 4 | 4 | Kho phụ tùng & tiến độ (US09, US10, US11, US12) | 🔲 Chưa bắt đầu |
+| 5 | 5 | Báo giá & hóa đơn (US13, US14, US15) | 🔲 Chưa bắt đầu |
+| 6 | 6 | Buffer & cải tiến | 🔲 Chưa bắt đầu |
+| 7 | 7 | Kiểm thử tổng lực (US18, US19) | 🔲 Chưa bắt đầu |
+| 8 | 8 | Triển khai & hoàn thiện (US20) | 🔲 Chưa bắt đầu |
+
+---
+
+## User Stories đã hoàn thành
+
+| US | Tên | Trạng thái | API endpoint / Trang UI |
+|---|---|---|---|
+| US01 | Quản lý khách hàng | ✅ | `GET/POST/PUT /api/v1/customers` — `/customers` |
+| US02 | Quản lý phương tiện | ✅ | `GET/POST/PUT /api/v1/vehicles` — `/customers` |
+| US03 | Xem lịch sử sửa chữa theo xe | ✅ | `GET /api/v1/vehicles/:id/repair-history` — `/vehicle-history` |
+| US04 | Tiếp nhận xe tạo phiếu sửa | ✅ | `POST /api/v1/repair-jobs` — `/reception` |
+| US06 | Thợ ghi nhận chẩn đoán kỹ thuật | ✅ | `PUT /api/v1/repair-jobs/:id/diagnosis` — `/task-board` |
+| US07 | Phân công thợ máy | ✅ | `PUT /api/v1/repair-jobs/:id/assign` — `/repair-jobs` |
+| US08 | Thợ xem công việc được phân công | ✅ | `GET /api/v1/repair-jobs/my-jobs` — `/task-board` |
+| US16 | Đăng nhập (JWT) | ✅ | `POST /api/v1/auth/login` — `/login` |
+| US18 | Unit testing tự động | ✅ | 46 test cases — `tests/unit/` |
+
+---
 
 ## Cấu trúc thư mục
 
 ```
 .
-├── api/                # OpenAPI 3.1 spec (contract-first)
-├── backend/            # REST API
+├── api/
+│   └── openapi.yaml            # Hợp đồng API OpenAPI 3.1
+├── backend/
 │   └── src/
-│       ├── routes/         # Endpoint + phân quyền
-│       ├── controllers/    # Nhận request → gọi service
-│       ├── services/       # Business logic + SQL
-│       ├── middleware/     # JWT auth, RBAC, validate, error handler
-│       └── utils/          # Hàm tính tiền thuần (dễ unit test)
-├── frontend/           # React SPA
-│   └── src/
-│       ├── pages/          # Theo vai trò: reception/mechanic/inventory/customer
-│       ├── components/     # layout + common
-│       ├── context/        # AuthContext
-│       ├── services/       # Axios client
-│       └── routes/         # React Router + ProtectedRoute
+│       ├── config/
+│       │   └── db.js               # PostgreSQL connection pool
+│       ├── controllers/            # Nhận request → gọi service → trả response
+│       │   ├── auth.controller.js
+│       │   ├── customer.controller.js
+│       │   ├── estimate.controller.js
+│       │   ├── invoice.controller.js
+│       │   ├── repairJob.controller.js
+│       │   ├── service.controller.js
+│       │   ├── sparePart.controller.js
+│       │   └── vehicle.controller.js
+│       ├── middleware/
+│       │   ├── auth.js             # Xác thực JWT
+│       │   ├── rbac.js             # Phân quyền theo role
+│       │   ├── validate.js         # Kiểm tra tham số đầu vào
+│       │   └── errorHandler.js     # Global error handler
+│       ├── routes/                 # Endpoint + RBAC guard
+│       │   ├── auth.routes.js
+│       │   ├── customer.routes.js
+│       │   ├── estimate.routes.js
+│       │   ├── health.routes.js
+│       │   ├── invoice.routes.js
+│       │   ├── repairJob.routes.js
+│       │   ├── service.routes.js
+│       │   ├── sparePart.routes.js
+│       │   └── vehicle.routes.js
+│       ├── services/               # Business logic + SQL thuần
+│       │   ├── auth.service.js
+│       │   ├── customer.service.js
+│       │   ├── estimate.service.js
+│       │   ├── invoice.service.js
+│       │   ├── repairJob.service.js
+│       │   ├── service.service.js
+│       │   ├── sparePart.service.js
+│       │   └── vehicle.service.js
+│       ├── utils/
+│       │   ├── pricing.js          # Tính giá thuần (estimate + VAT + kho)
+│       │   └── workflow.js         # State machine & validation (US04, US06, US07, US08)
+│       └── server.js
 ├── database/
-│   ├── migrations/         # 001→012, chạy tuần tự
-│   ├── seeds/              # Dữ liệu demo
-│   └── queries/            # Câu truy vấn kiểm tra
+│   ├── migrations/                 # 001 → 015, chạy tuần tự khi khởi tạo DB
+│   │   ├── 001_init.sql            # Schema người dùng
+│   │   ├── 002_customers_vehicles.sql
+│   │   ├── 003_repair_jobs.sql
+│   │   ├── 004_diagnoses.sql
+│   │   ├── 005_mechanic_assignments.sql
+│   │   ├── 006_repair_tasks.sql
+│   │   ├── 007_spare_parts.sql
+│   │   ├── 008_used_parts.sql
+│   │   ├── 009_inventory_movements.sql
+│   │   ├── 010_estimates.sql
+│   │   ├── 011_invoices.sql
+│   │   ├── 012_payments.sql
+│   │   ├── 013_repair_workflow.sql
+│   │   ├── 014_create_repair_job_function.sql
+│   │   └── 015_seed_initial_services.sql  # 5 dịch vụ mặc định
+│   ├── seeds/
+│   │   ├── 001_customers_vehicles.sql
+│   │   └── 002_full_demo_data.sql  # Demo đầy đủ với 3 xe, 3 phiếu, phụ tùng, hóa đơn
+│   └── queries/
+│       └── 001_check_customers_vehicles.sql
+├── frontend/
+│   └── src/
+│       ├── components/
+│       │   ├── common/
+│       │   │   └── StatusBadge.jsx # Badge trạng thái (tiếng Việt có dấu)
+│       │   └── layout/
+│       │       ├── Header.jsx
+│       │       ├── Layout.jsx
+│       │       └── Sidebar.jsx
+│       ├── context/
+│       │   ├── AuthContext.jsx
+│       │   └── AuthProvider.jsx
+│       ├── pages/
+│       │   ├── DashboardPage.jsx
+│       │   ├── LoginPage.jsx
+│       │   ├── admin/
+│       │   │   └── RoleManagementPage.jsx
+│       │   ├── customer/
+│       │   │   └── StatusPortalPage.jsx   # Khách hàng tra cứu trạng thái
+│       │   ├── inventory/
+│       │   │   ├── InventoryPage.jsx      # Quản lý kho phụ tùng
+│       │   │   └── StockWarningPage.jsx
+│       │   ├── mechanic/
+│       │   │   ├── TaskBoardPage.jsx      # Bảng công việc thợ máy (US08)
+│       │   │   └── ProgressPage.jsx
+│       │   └── reception/
+│       │       ├── ReceptionPage.jsx      # Tiếp nhận xe mới (US04)
+│       │       ├── RepairJobsPage.jsx     # Danh sách phiếu + phân công (US07)
+│       │       ├── VehicleHistoryPage.jsx # Lịch sử sửa chữa xe (US03)
+│       │       ├── CustomersPage.jsx      # Quản lý KH & xe (US01, US02)
+│       │       └── EstimatePage.jsx
+│       ├── routes/
+│       │   ├── AppRouter.jsx
+│       │   └── ProtectedRoute.jsx
+│       └── services/
+│           └── api.js                     # Axios instance + interceptors JWT
 ├── tests/
-│   ├── unit/               # pricing: estimate, VAT, trừ kho
-│   ├── integration/        # API workflow (sprint 7)
-│   └── e2e/                # Playwright (sprint 7)
-└── docs/                   # SRS, backlog, sprint plan, diagrams, ERD
+│   ├── unit/
+│   │   ├── pricing.test.js        # 24 cases: estimate, VAT, kho (canDeduct, applyStockMovement, isLowStock)
+│   │   └── workflow.test.js       # 22 cases: state machine, validation (US04, US06, regression checks)
+│   └── integration/
+│       ├── repair-workflow.test.js # 4 cases: US04, US06, US07, US08 end-to-end API
+│       └── vehicle-history.test.js # 6 cases: US03 API end-to-end
+├── docs/
+│   ├── 01-overview.md
+│   ├── requirements.md            # 20 User Stories, Gherkin AC, ma trận RBAC
+│   ├── backlog.md                 # Story points, gán sprint
+│   ├── sprint-plan.md             # Lộ trình 8 tuần
+│   ├── definition-of-done.md
+│   ├── erd.md                     # ERD 14 bảng
+│   ├── PROJECT_MEMORY.md          # Nhật ký quyết định kỹ thuật (cập nhật liên tục)
+│   └── diagrams/                  # Use Case, Class, Sequence, Activity, State Machine
+├── chay_backend.bat               # Script khởi động backend nhanh (Windows)
+├── chay_frontend.bat              # Script khởi động frontend nhanh (Windows)
+├── khoi_tao_database.bat          # Script tạo database + seed data (Windows)
+├── docker-compose.yml
+├── .env.example
+└── package.json                   # Root: chạy unit test từ gốc project
 ```
 
-## Chạy dự án
+---
 
-Yêu cầu: Docker Desktop + Node.js 20+
+## Tài khoản demo
 
-```bash
-# 1. Database (tự chạy migration 001→012 khi tạo DB mới)
-docker compose up -d db
+| Vai trò | Email | Mật khẩu |
+|---|---|---|
+| Lễ tân | `dung.receptionist@workshop.vn` | `123456` |
+| Lễ tân 2 | `duc.receptionist@workshop.vn` | `123456` |
+| Thợ máy | `hieu.mechanic@workshop.vn` | `123456` |
+| Thợ máy 2 | `khoa.mechanic@workshop.vn` | `123456` |
+| Quản lý dịch vụ | `minh.manager@workshop.vn` | `123456` |
+| Nhân viên kho | `ngoc.warehouse@workshop.vn` | `123456` |
+| Quản trị viên | `admin@workshop.vn` | `123456` |
 
-# 2. Backend
-cd backend && cp .env.example .env && npm install && npm run dev
-# → API tại http://localhost:3000/api/health
+---
 
-# 3. Frontend (terminal khác)
-cd frontend && npm install && npm run dev
-# → UI tại http://localhost:5173 (proxy /api → :3000)
+## Phân quyền (RBAC)
 
-# Nạp dữ liệu demo
-docker compose exec db psql -U workshop_user -d workshop_db \
-  -f /docker-entrypoint-initdb.d/../tmp/seed.sql   # hoặc:
-Get-Content .\database\seeds\002_full_demo_data.sql -Raw | docker compose exec -T db \
-  psql -U workshop_user -d workshop_db
+| Role | Trang / Chức năng |
+|---|---|
+| `receptionist` | Tiếp nhận xe, CRUD khách hàng & phương tiện, xem lịch sử, danh sách phiếu, phân công |
+| `service_manager` | Xem & phân công phiếu sửa chữa, xem lịch sử |
+| `mechanic` | Task board cá nhân, ghi chẩn đoán, cập nhật trạng thái |
+| `warehouse_staff` | Quản lý kho phụ tùng |
+| `customer` | Tra cứu trạng thái sửa chữa (portal) |
+| `admin` | Toàn quyền |
 
-# Chạy full-stack bằng Docker (production build)
-docker compose up --build
-# → UI http://localhost:8080, API http://localhost:3000
+---
+
+## API chính
+
+| Method | Endpoint | Role | Mô tả |
+|---|---|---|---|
+| POST | `/api/v1/auth/login` | — | Đăng nhập, nhận JWT |
+| GET | `/api/v1/customers` | receptionist, admin | Danh sách khách hàng |
+| GET | `/api/v1/vehicles` | receptionist, admin | Tìm kiếm xe |
+| GET | `/api/v1/vehicles/:id/repair-history` | receptionist, manager | Lịch sử sửa chữa xe (US03) |
+| POST | `/api/v1/repair-jobs` | receptionist | Tạo phiếu tiếp nhận (US04) |
+| GET | `/api/v1/repair-jobs` | receptionist, manager | Danh sách phiếu sửa |
+| GET | `/api/v1/repair-jobs/my-jobs` | mechanic | Công việc của thợ (US08) |
+| PUT | `/api/v1/repair-jobs/:id/assign` | manager, receptionist | Phân công thợ (US07) |
+| PUT | `/api/v1/repair-jobs/:id/status` | receptionist, manager, mechanic | Cập nhật trạng thái |
+| PUT | `/api/v1/repair-jobs/:id/diagnosis` | mechanic | Ghi chẩn đoán (US06) |
+| GET | `/api/v1/spare-parts` | warehouse, receptionist | Danh sách phụ tùng kho |
+| GET | `/api/v1/services` | all | Danh mục dịch vụ sửa chữa |
+| GET | `/api/health` | — | Health check |
+
+Tài liệu API đầy đủ: [`api/openapi.yaml`](api/openapi.yaml)
+
+---
+
+## State Machine — Trạng thái phiếu sửa chữa
+
+```
+pending → diagnosing → estimated → approved → in_repair → completed
+    ↘         ↘            ↘          ↘           ↘
+  cancelled  cancelled   cancelled  cancelled   cancelled
 ```
 
-## Kiểm thử
+| Trạng thái | Mô tả | Actor |
+|---|---|---|
+| `pending` | Vừa tiếp nhận, chờ phân công | Lễ tân |
+| `diagnosing` | Thợ đang chẩn đoán | Thợ máy |
+| `estimated` | Đã lập báo giá, chờ khách duyệt | Lễ tân / QM |
+| `approved` | Khách duyệt, sẵn sàng sửa | Khách hàng |
+| `in_repair` | Đang sửa chữa | Thợ máy |
+| `completed` | Hoàn thành | Thợ máy |
+| `cancelled` | Hủy | Bất kỳ |
 
-```bash
-npm test          # Unit test: estimate, VAT, inventory deduction (24 cases)
-```
-
-CI chạy tự động trên mỗi PR: frontend lint+build, backend unit test,
-migration + health check với PostgreSQL service.
-
-## Tài liệu
-
-- `docs/01-overview.md` — Tổng quan đề tài
-- `docs/requirements.md` — 20 User Stories, Gherkin AC, ma trận RBAC
-- `docs/backlog.md` — Story points, gán sprint
-- `docs/sprint-plan.md` — Lộ trình 8 tuần
-- `docs/definition-of-done.md` — Tiêu chí hoàn thành
-- `docs/erd.md` — Sơ đồ thực thể quan hệ (14 bảng)
-- `docs/diagrams/` — Use Case, Class, Sequence, Activity, State Machine
-- `api/openapi.yaml` — Hợp đồng API đầy đủ
+---
 
 ## Quy trình Git
 
-Issue → `feature/USxx-...` branch → Code → Commit → Push → Pull Request →
-Peer review → Merge `main` → CI xanh.
+```
+Issue → feature/USxx-<ten-ngan> branch → Code + Test → Commit → Push → Pull Request → Peer review → Merge main → CI xanh
+```
+
+Quy ước commit:
+```
+feat(sprint-N): mô tả ngắn
+fix(module): mô tả lỗi
+test: thêm/sửa test
+docs: cập nhật tài liệu
+```

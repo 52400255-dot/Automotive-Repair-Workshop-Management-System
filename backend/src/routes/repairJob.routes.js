@@ -9,6 +9,7 @@ const { authenticateToken } = require('../middleware/auth');
 const { authorize } = require('../middleware/rbac');
 
 router.use(authenticateToken);
+router.param('id', (req, res, next) => require('../middleware/validate').validateIntParam('id')(req, res, next));
 
 router.get('/', authorize('receptionist', 'service_manager', 'admin'), controller.list);
 router.get('/my-jobs', authorize('mechanic'), controller.myJobs);
@@ -23,7 +24,7 @@ router.put('/:id/status', authorize('receptionist', 'service_manager', 'mechanic
 
 // Service Manager phân công thợ (hỗ trợ cả PUT /:id/assign và PUT /assign { repairJobId, mechanicId })
 router.put('/assign', authorize('service_manager', 'receptionist'), (req, res, next) => {
-  req.params.id = req.body.repairJobId || req.body.repair_job_id || req.body.jobId;
+  req.params.id = req.body?.repairJobId ?? req.body?.repair_job_id ?? req.body?.jobId;
   return controller.assign(req, res, next);
 });
 router.put('/:id/assign', authorize('service_manager', 'receptionist'), controller.assign);
