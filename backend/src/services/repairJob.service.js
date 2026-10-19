@@ -187,6 +187,13 @@ async function getJobsForMechanic(mechanicId, status) {
 
 /** Lấy danh sách kỹ thuật viên (mechanics) phục vụ phân công */
 async function getMechanics() {
+  const result = await pool.query(
+    `SELECT id, full_name, email FROM users WHERE role = 'mechanic' ORDER BY full_name ASC`
+  );
+  return result.rows;
+}
+
+/** Lịch sử chẩn đoán của một phiếu */
 async function getDiagnosisHistory(repairJobId) {
   const result = await pool.query(
     `SELECT d.*, u.full_name AS mechanic_name
@@ -199,17 +206,16 @@ async function getDiagnosisHistory(repairJobId) {
   return result.rows;
 }
 
-/** Danh sách việc của một thợ máy (task board) */
-async function getJobsForMechanic(mechanicId) {
-  const result = await pool.query(
-    `SELECT id, full_name, email FROM users WHERE role = 'mechanic' ORDER BY full_name ASC`
-  );
-  return result.rows;
-}
-
 module.exports = {
-  findAll, findById, create, updateStatus,
-  assignMechanic, addDiagnosis, getJobsForMechanic, getMechanics,
-  assignMechanic, addDiagnosis, getJobsForMechanic, getDiagnosisHistory,
+  findAll,
+  findById,
+  create,
+  updateStatus,
+  assignMechanic,
+  addDiagnosis,
+  getJobsForMechanic,
+  getMechanics,
+  getDiagnosisHistory,
 };
+
 
