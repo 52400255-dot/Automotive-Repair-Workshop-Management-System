@@ -276,3 +276,81 @@ test('US06 - Tho may ghi nhan ket qua chan doan ky thuat', async () => {
   });
   assert.equal(forbidden.status, 403, 'Le tan gui chan doan phai bi chan 403 Forbidden');
 });
+
+// Regression cases intentionally follow the existing fixture workflow.
+test('US04 - invalid service payload never leaves a partial job', async () => {
+  const count = async () => Number((await db.query('SELECT count(*) FROM repair_jobs WHERE vehicle_id = $1', [fixtures.vehicleId])).rows[0].count);
+  const beforeCount = await count();
+  for (const [serviceItems, expected] of [[[{serviceId: fixtures.serviceId, quantity: 0}], 400],
+    [[{serviceId: fixtures.serviceId, quantity: 1}, {serviceId: 9007199254740991, quantity: 1}], 404]]) {
+    const res = await api('/repair-jobs', {method: 'POST', tk: tokens.receptionist,
+      body: {vehicleId: fixtures.vehicleId, customerRequest: 'Regression', serviceItems}});
+    assert.equal(res.status, expected);
+    assert.equal(await count(), beforeCount);
+  }
+  // Also prove the stored function itself is atomic if a later service fails.
+  await assert.rejects(db.query('SELECT create_repair_job_with_services($1,$2,$3,$4::jsonb)',
+    [fixtures.vehicleId, fixtures.receptionistId, 'Rollback', JSON.stringify([
+      {service_id: fixtures.serviceId, quantity: 1}, {service_id: 9007199254740991, quantity: 1}])]));
+  assert.equal(await count(), beforeCount);
+});
+
+test('US07 - reject non-mechanics and preserve current assignment', async () => {
+  const res = await api(`/repair-jobs/${fixtures.createdJobId}/assign`, {method: 'PUT', tk: tokens.manager,
+    body: {mechanicId: fixtures.receptionistId}});
+  assert.equal(res.status, 400);
+  const job = await api(`/repair-jobs/${fixtures.createdJobId}`, {tk: tokens.manager});
+  assert.equal(String(job.json.data.mechanic_id), String(fixtures.mechanicAId));
+});
+
+test('US07/06 - reassignment revokes old mechanic and preserves diagnosis history', async () => {
+  const assign = await api('/repair-jobs/assign', {method: 'PUT', tk: tokens.manager,
+    body: {repairJobId: fixtures.createdJobId, mechanicId: fixtures.mechanicBId}});
+  assert.equal(assign.status, 200);
+  const oldJobs = await api('/repair-jobs/my-jobs', {tk: tokens.mechanicA});
+  assert.ok(!oldJobs.json.data.some(j => String(j.id) === String(fixtures.createdJobId)));
+  const oldDiagnosis = await api(`/repair-jobs/${fixtures.createdJobId}/diagnosis`, {method: 'PUT', tk: tokens.mechanicA, body: {diagnosisResult: 'Not allowed'}});
+  assert.equal(oldDiagnosis.status, 403);
+  const oldStatus = await api(`/repair-jobs/${fixtures.createdJobId}/status`, {method: 'PUT', tk: tokens.mechanicA, body: {status: 'estimated'}});
+  assert.equal(oldStatus.status, 403);
+  const diagnosis = await api(`/repair-jobs/${fixtures.createdJobId}/diagnosis`, {method: 'PUT', tk: tokens.mechanicB, body: {diagnosisResult: ' Updated diagnosis '}});
+  assert.equal(diagnosis.status, 201);
+  const job = await api(`/repair-jobs/${fixtures.createdJobId}`, {tk: tokens.manager});
+  assert.equal(job.json.data.diagnosis_result, 'Updated diagnosis');
+  assert.equal(String(job.json.data.mechanic_id), String(fixtures.mechanicBId));
+  assert.equal(Number((await db.query('SELECT count(*) FROM diagnoses WHERE repair_job_id=$1', [fixtures.createdJobId])).rows[0].count), 2);
+});
+
+test('US07 - concurrent identical assignments create only one history entry', async () => {
+  const count = async () => Number((await db.query('SELECT count(*) FROM mechanic_assignments WHERE repair_job_id=$1', [fixtures.createdJobId])).rows[0].count);
+  const beforeCount = await count();
+  const results = await Promise.all([1,2].map(() => api(`/repair-jobs/${fixtures.createdJobId}/assign`, {
+    method: 'PUT', tk: tokens.manager, body: {mechanicId: fixtures.mechanicAId}})));
+  assert.deepEqual(results.map(r => r.status), [200,200]);
+  assert.equal(await count(), beforeCount + 1);
+  assert.equal(results[0].json.data.id, results[1].json.data.id);
+});
+
+test('US06/07 - terminal jobs cannot be reassigned, diagnosed or reopened', async () => {
+  const jump = await api(`/repair-jobs/${fixtures.createdJobId}/status`, {method:'PUT',tk:tokens.mechanicA,body:{status:'completed'}});
+  assert.equal(jump.status,409);
+  await db.query("UPDATE repair_jobs SET status='completed', completed_at=NOW() WHERE id=$1",[fixtures.createdJobId]);
+  for (const [suffix, tk, body] of [['assign',tokens.manager,{mechanicId:fixtures.mechanicBId}],
+    ['diagnosis',tokens.mechanicA,{diagnosisResult:'No'}], ['status',tokens.mechanicA,{status:'pending'}]]) {
+    const res=await api(`/repair-jobs/${fixtures.createdJobId}/${suffix}`,{method:'PUT',tk,body});
+    assert.equal(res.status,409);
+  }
+  const history=await api(`/vehicles/${fixtures.vehicleId}/repair-history`,{tk:tokens.receptionist});
+  assert.equal(history.status,200);
+  assert.ok(history.json.data.some(j => String(j.id)===String(fixtures.createdJobId)));
+});
+
+test('US01/02 - reject bad CRUD input and malformed URL IDs', async () => {
+  for (const [url,body] of [['/customers',{fullName:'   ',phone:'123'}],
+    ['/customers',{fullName:'A',phone:'1'.repeat(21)}], ['/vehicles',{customerId:fixtures.customerId,licensePlate:'X',brand:42,model:'Y'}]]) {
+    assert.equal((await api(url,{method:'POST',tk:tokens.receptionist,body})).status,400);
+  }
+  for (const url of ['/customers/1.5','/vehicles/9007199254740992','/repair-jobs/abc'])
+    assert.equal((await api(url,{tk:tokens.receptionist})).status,400);
+  assert.equal((await api(`/customers/${fixtures.customerId}`, {method:'PUT',tk:tokens.receptionist,body:{phone:'0987654321'}})).status,200);
+});

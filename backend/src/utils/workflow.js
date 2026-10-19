@@ -21,7 +21,7 @@ const ALLOWED_TRANSITIONS = {
  * @returns {boolean}
  */
 function isValidStatusTransition(currentStatus, nextStatus) {
-  if (!currentStatus || !nextStatus) return false;
+  if (!Object.hasOwn(ALLOWED_TRANSITIONS, currentStatus) || !Object.hasOwn(ALLOWED_TRANSITIONS, nextStatus)) return false;
   if (currentStatus === nextStatus) return true;
   const allowed = ALLOWED_TRANSITIONS[currentStatus];
   return Boolean(allowed && allowed.includes(nextStatus));
@@ -33,22 +33,24 @@ function isValidStatusTransition(currentStatus, nextStatus) {
  * @param {any} serviceItems
  * @returns {Array<{ serviceId: number, quantity: number }>}
  */
-function normalizeServiceItems(serviceItems) {
-  if (!Array.isArray(serviceItems)) return [];
-  return serviceItems
-    .map((item) => {
-      if (typeof item === 'number' || typeof item === 'string') {
-        const id = Number(item);
-        return id > 0 ? { serviceId: id, quantity: 1 } : null;
-      }
-      if (item && typeof item === 'object') {
-        const id = Number(item.serviceId !== undefined ? item.serviceId : (item.service_id !== undefined ? item.service_id : item.id));
-        const qty = item.quantity !== undefined ? Number(item.quantity) : 1;
-        return id > 0 && qty > 0 ? { serviceId: id, quantity: qty } : null;
-      }
-      return null;
-    })
-    .filter(Boolean);
+function isPositiveId(value) {
+  return (typeof value === 'number' || (typeof value === 'string' && /^\d+$/.test(value)))
+    && Number.isSafeInteger(Number(value)) && Number(value) > 0;
+}
+
+function normalizeServiceItems(items) {
+  if (items === undefined) return [];
+  const invalid = () => { throw Object.assign(new Error('Danh sách dịch vụ hoặc số lượng không hợp lệ'), { statusCode: 400 }); };
+  if (!Array.isArray(items)) return invalid();
+  return items.map(item => {
+    const object = item !== null && typeof item === 'object' && !Array.isArray(item);
+    const id = object ? (item.serviceId ?? item.service_id ?? item.id) : item;
+    const quantity = object && item.quantity !== undefined ? item.quantity : 1;
+    if (!isPositiveId(id) || !['number', 'string'].includes(typeof quantity)
+      || !Number.isFinite(Number(quantity)) || Number(quantity) <= 0
+      || Number(quantity) > 9999999999.99) return invalid();
+    return { serviceId: Number(id), quantity: Number(quantity) };
+  });
 }
 
 /**
@@ -58,11 +60,10 @@ function normalizeServiceItems(serviceItems) {
  */
 function validateReceptionData(data) {
   if (!data) return { valid: false, error: 'Dữ liệu không được để trống' };
-  const vId = Number(data.vehicleId);
-  if (!vId || vId <= 0 || Number.isNaN(vId)) {
+  if (!isPositiveId(data.vehicleId)) {
     return { valid: false, error: 'Mã phương tiện (vehicleId) không hợp lệ' };
   }
-  if (!data.customerRequest || !data.customerRequest.trim()) {
+  if (typeof data.customerRequest !== 'string' || !data.customerRequest.trim()) {
     return { valid: false, error: 'Mô tả yêu cầu khách hàng không được để trống' };
   }
   return { valid: true };
@@ -74,13 +75,15 @@ function validateReceptionData(data) {
  * @returns {{ valid: boolean, error?: string }}
  */
 function validateDiagnosisData(data) {
-  if (!data || !data.diagnosisResult || !data.diagnosisResult.trim()) {
+  if (data?.repairSuggestion != null && typeof data.repairSuggestion !== 'string') return { valid: false, error: 'Đề xuất sửa chữa phải là chuỗi' };
+  if (!data || typeof data.diagnosisResult !== 'string' || !data.diagnosisResult.trim()) {
     return { valid: false, error: 'Kết quả chẩn đoán kỹ thuật không được để trống' };
   }
   return { valid: true };
 }
 
 module.exports = {
+  isPositiveId,
   isValidStatusTransition,
   normalizeServiceItems,
   validateReceptionData,

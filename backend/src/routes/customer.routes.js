@@ -8,14 +8,17 @@ const controller = require('../controllers/customer.controller');
 const { authenticateToken } = require('../middleware/auth');
 const { authorize } = require('../middleware/rbac');
 
+const { validateIntParam, validateEntity } = require('../middleware/validate');
+
 router.use(authenticateToken);
+router.param('id', (req, res, next) => validateIntParam('id')(req, res, next));
 
 router.get('/', controller.list);
 router.get('/:id', controller.getById);
 router.get('/:id/vehicles', controller.getVehicles);
 
-router.post('/', authorize('receptionist', 'admin'), controller.create);
-router.put('/:id', authorize('receptionist', 'admin'), controller.update);
+router.post('/', authorize('receptionist', 'admin'), validateEntity('customer'), controller.create);
+router.put('/:id', authorize('receptionist', 'admin'), validateEntity('customer', true), controller.update);
 router.delete('/:id', authorize('admin'), controller.remove);
 
 module.exports = router;

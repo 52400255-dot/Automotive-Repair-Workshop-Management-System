@@ -1,7 +1,37 @@
 # PROJECT MEMORY — Automotive Repair Workshop Management System
 
 Tài liệu lưu trữ trạng thái, kiến trúc, quyết định kỹ thuật và tiến độ thực tế của dự án.
-Cập nhật: 17/10/2026 (Sprint 3 / Tuần 3)
+Cập nhật: 19/10/2026 (ổn định US01–07 và US18)
+
+## Hiện trạng và phạm vi đang áp dụng
+
+Phạm vi được chủ dự án xác nhận là **US01, US02, US03, US04, US05, US06, US07 và US18**. Đợt này sửa lỗi và củng cố code đã có; không hoàn thành toàn bộ dự án. Các mục 2–6 bên dưới là nhật ký cũ, không phải bằng chứng nghiệm thu hay chỉ dẫn mở rộng phạm vi. Tài liệu handoff chỉ là tham khảo; không tự động triển khai US09–17, merge nhánh hoặc thay đổi lịch sử Git.
+
+- **US01:** API khách hàng có CRUD, nhưng UI hiện chỉ thêm và liệt kê. Chưa có UI sửa/xóa khách hàng.
+- **US02:** API xe có CRUD; UI CRUD quản lý xe còn thiếu. Trang khách hàng không có chức năng quản lý xe.
+- **US03–07:** Củng cố lịch sử xe và luồng tiếp nhận → phân công → chẩn đoán. Login và bảng việc hiện hữu được giữ làm nền cho US06–07; không vì vậy đánh dấu US08/US16 hoàn thành.
+- **US18:** Unit test phải kiểm tra luật đang được service sử dụng; integration test chạy trên database riêng. Không suy ra API đúng chỉ vì unit test xanh.
+- Không thêm kho, báo giá, hóa đơn, quản lý quyền, triển khai, migration mới hoặc nhập nhánh trigger vào đợt này. Giữ nguyên thay đổi `README.md` của người dùng.
+
+### Quy tắc ổn định code
+
+- `workflow.js` được dùng trực tiếp cho tiếp nhận/chẩn đoán/chuyển trạng thái. ID là số nguyên dương an toàn; chuỗi bắt buộc phải đúng kiểu và có nội dung sau trim. API khách hàng/xe kiểm tra độ dài theo schema; cập nhật chỉ kiểm tra trường được gửi.
+- Tiếp nhận bắt buộc `vehicleId` và `customerRequest`. `serviceItems` có thể bỏ qua hoặc là mảng rỗng; null, sai kiểu hoặc bất kỳ phần tử/số lượng sai đều bị từ chối toàn bộ. Không bỏ qua phần tử lỗi, không đổi số lượng 0 thành 1. Stored function giữ tạo phiếu và chi tiết dịch vụ nguyên tử.
+- Mỗi phiếu có một thợ phụ trách: bản phân công mới nhất theo **`assigned_at DESC, id DESC`**. Danh sách phiếu, chi tiết, bảng việc và kiểm tra quyền dùng cùng quy tắc; bản phân công cũ vẫn giữ làm lịch sử.
+- Chỉ phân công/phân công lại khi `pending` hoặc `diagnosing`, người nhận phải có role `mechanic`. Gán lại đúng thợ hiện tại không ghi bản trùng. Lần đầu chuyển `pending → diagnosing`; phân công lại giữ `diagnosing`.
+- Chỉ thợ hiện tại được chẩn đoán khi phiếu `diagnosing`. Mỗi lần lưu tạo một bản lịch sử, giữ trạng thái `diagnosing`; bản mới nhất theo **`diagnosed_at DESC, id DESC`** được hiển thị. Thợ cũ mất quyền thao tác sau phân công lại.
+- Phân công, chẩn đoán và cập nhật trạng thái kiểm tra/ghi trong transaction với khóa hàng phiếu. Service là nơi thực thi luật nghiệp vụ; không thêm trigger.
+- Endpoint trạng thái giữ chuỗi `pending → diagnosing → estimated → approved → in_repair → completed`, cho phép hủy ở trạng thái chưa kết thúc và gửi lại cùng trạng thái hợp lệ. Thợ chỉ cập nhật phiếu đang phụ trách. Không mở rộng UI tiến độ trong đợt này.
+- Lỗi chuẩn: `400` dữ liệu sai, `403` không có quyền, `404` đối tượng/tham chiếu không tồn tại, `409` trùng dữ liệu, xung đột trạng thái hoặc xóa dữ liệu đang được tham chiếu. URL, payload và response hiện hữu được giữ; các alias dùng chung service/validation.
+- UI tiếp nhận bỏ qua response xe cũ khi đổi khách hàng nhanh, thể hiện tải dữ liệu và chặn gửi xe không thuộc khách đang chọn. Trang khách hàng có loading/lỗi/thành công, chống gửi lặp và giữ form khi lưu thất bại. Nút phân công/chẩn đoán tuân theo luật trên.
+
+### Môi trường kiểm thử riêng
+
+PostgreSQL **18.6 native**, `localhost:5432`; Docker Desktop đang tắt. Database kiểm thử **`workshop_stabilization_test`**, owner `workshop_user`, đã được người dùng tạo. Không cần quyền admin và **không reset hay chạy kiểm thử ghi dữ liệu vào `workshop_db`**.
+
+Override `DB_NAME=workshop_stabilization_test` trong biến môi trường của tiến trình khi chạy `backend/src/scripts/setupDb.js`, seed, backend và integration test. Không sửa `.env`. Chạy các migration trong `database/migrations/*.sql` theo thứ tự, rồi seed; các lệnh có `--reset` trong nhật ký cũ không áp dụng cho database demo.
+
+Kết quả kiểm chứng của đợt ổn định sẽ được ghi sau khi hoàn tất migration/seed, unit/integration, lint, build và kiểm tra UI; các kết quả cũ bên dưới không đại diện cho đợt này.
 
 ---
 
@@ -11,7 +41,7 @@ Cập nhật: 17/10/2026 (Sprint 3 / Tuần 3)
 - **Công nghệ chính**:
   - **Frontend**: React 19, Vite, React Router DOM v7, Axios.
   - **Backend**: Node.js, Express 5 (Kiến trúc 3 tầng: Routes -> Controllers -> Services), PostgreSQL (thư viện `pg`), JWT (jsonwebtoken), bcryptjs, CORS.
-  - **Database**: PostgreSQL 16 (14 migrations + seeds + Stored Procedures nguyên tử).
+  - **Database**: PostgreSQL (môi trường cục bộ hiện tại: 18.6 native; migrations + seeds + stored functions nguyên tử).
   - **API Contract**: OpenAPI 3.1 (`api/openapi.yaml`).
   - **Testing**: Node.js Test Runner tích hợp (`node:test`, `node:assert/strict`).
 
@@ -28,7 +58,7 @@ Báo cáo hiện trạng ban đầu có nhiều điểm "tô hồng" không đú
 
 ---
 
-## 3. Mục tiêu Sprint Tuần 3 (Sprint 3)
+## 3. Mục tiêu Sprint Tuần 3 (nhật ký cũ, không phải phạm vi nghiệm thu hiện tại)
 Triển khai hoàn chỉnh và kiểm thử luồng sửa chữa: **Tiếp nhận xe (US04) -> Phân công thợ (US07) -> Xem việc được giao (US08) -> Cập nhật chẩn đoán (US06)**.
 
 | User Story | Phân công vai trò | Mục tiêu cụ thể trong Tuần 3 |
@@ -78,7 +108,7 @@ Triển khai hoàn chỉnh và kiểm thử luồng sửa chữa: **Tiếp nhậ
 ### C. Kiểm thử & CI/CD (US18 - QA & DevOps)
 1. **Unit Testing (US18)**:
    - File mới: `backend/src/utils/workflow.js`: Định nghĩa các hàm thuần kiểm tra chuyển đổi trạng thái và xác thực dữ liệu.
-   - File mới: `tests/unit/workflow.test.js`: 18 ca unit test kiểm tra toàn diện Finite State Machine của luồng sửa chữa và validation dữ liệu tiếp nhận, chẩn đoán.
+   - File mới: `tests/unit/workflow.test.js`: 22 ca unit test kiểm tra toàn diện Finite State Machine của luồng sửa chữa, validation dữ liệu tiếp nhận, chẩn đoán và các ca kiểm tra hồi quy xác thực (tổng 46 unit test).
    - File sửa: `package.json` và `backend/package.json`: Cấu hình npm test chạy toàn bộ test trong `tests/unit/*.test.js`.
 2. **Integration Testing (Sprint 3 E2E API)**:
    - File mới: `tests/integration/repair-workflow.test.js`: Kiểm thử tích hợp tự động toàn bộ vòng đời Tuần 3: Tiếp nhận xe -> Phân công thợ -> Thợ xem việc trên TaskBoard -> Thợ ghi nhận chẩn đoán.

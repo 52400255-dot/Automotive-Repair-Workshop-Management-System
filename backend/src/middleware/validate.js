@@ -107,7 +107,7 @@ function validate(schema) {
 function validateIntParam(name = 'id') {
   return (req, res, next) => {
     const raw = req.params[name];
-    if (!/^\d+$/.test(String(raw ?? '')) || Number(raw) <= 0) {
+    if (!require('../utils/workflow').isPositiveId(raw)) {
       return res.status(400).json({
         success: false,
         message: `Tham số '${name}' không hợp lệ (phải là số nguyên dương)`,
@@ -119,3 +119,35 @@ function validateIntParam(name = 'id') {
 }
 
 module.exports = { validate, validateIntParam };
+
+/** Validation for the existing customer/vehicle forms and partial updates. */
+function validateEntity(entity, partial = false) {
+  const specs = entity === 'customer'
+    ? { fullName: 150, phone: 20, email: 255 }
+    : { licensePlate: 20, brand: 100, model: 100 };
+  const required = entity === 'customer' ? ['fullName', 'phone'] : ['customerId', 'licensePlate', 'brand', 'model'];
+  return (req, res, next) => {
+    const body = req.body;
+    const reject = (message) => res.status(400).json({ success: false, message });
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return reject('Dữ liệu phải là object');
+    for (const field of required) {
+      if (!partial && body[field] == null) return reject(`${field} là bắt buộc`);
+    }
+    for (const [field, max] of Object.entries(specs)) {
+      if (!Object.hasOwn(body, field)) continue;
+      if (field === 'email' && body[field] === null) continue;
+      if (typeof body[field] !== 'string' || !body[field].trim() || body[field].trim().length > max)
+        return reject(`${field} phải là chuỗi có nội dung, tối đa ${max} ký tự`);
+      body[field] = body[field].trim();
+    }
+    for (const field of entity === 'customer' ? ['userId'] : ['customerId']) {
+      if (Object.hasOwn(body, field) && !(field === 'userId' && body[field] === null)
+        && !require('../utils/workflow').isPositiveId(body[field])) return reject(`${field} không hợp lệ`);
+    }
+    if (Object.hasOwn(body, 'manufactureYear') && body.manufactureYear !== null
+      && (!Number.isInteger(body.manufactureYear) || body.manufactureYear < 1 || body.manufactureYear > 9999))
+      return reject('Năm sản xuất phải là số nguyên từ 1 đến 9999');
+    next();
+  };
+}
+module.exports.validateEntity = validateEntity;

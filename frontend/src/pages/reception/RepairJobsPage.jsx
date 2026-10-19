@@ -142,7 +142,7 @@ export default function RepairJobsPage() {
                   </td>
                   <td><StatusBadge status={j.status} /></td>
                   <td>
-                    {(j.status === 'pending' || !j.mechanic_name) ? (
+                    {['pending', 'diagnosing'].includes(j.status) && ((j.status === 'pending' || !j.mechanic_name) ? (
                       <button className="btn btn-primary" onClick={() => openAssign(j)} style={{ fontSize: '13px', padding: '6px 12px' }}>
                         Phân công thợ
                       </button>
@@ -150,7 +150,7 @@ export default function RepairJobsPage() {
                       <button className="btn btn-outline" onClick={() => openAssign(j)} style={{ fontSize: '12px', padding: '4px 8px' }}>
                         Đổi thợ
                       </button>
-                    )}
+                    ))}
                   </td>
                 </tr>
               ))}

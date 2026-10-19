@@ -3,6 +3,27 @@
  * phân công thợ, ghi nhận chẩn đoán
  */
 const { pool } = require('../config/db');
+const { isPositiveId, normalizeServiceItems, validateReceptionData, validateDiagnosisData, isValidStatusTransition } = require('../utils/workflow');
+const fail = (code, message) => { throw Object.assign(new Error(message), { statusCode: code }); };
+function requireId(id) { if (!isPositiveId(id)) fail(400, 'Mã định danh không hợp lệ'); }
+async function withLockedJob(id, action) {
+  requireId(id);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const job = (await client.query('SELECT * FROM repair_jobs WHERE id = $1 FOR UPDATE', [id])).rows[0];
+    if (!job) fail(404, 'Không tìm thấy phiếu sửa chữa');
+    const assignment = (await client.query('SELECT * FROM mechanic_assignments WHERE repair_job_id = $1 ORDER BY assigned_at DESC, id DESC LIMIT 1', [id])).rows[0];
+    const result = await action(client, job, assignment);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) { await client.query('ROLLBACK'); throw err; }
+  finally { client.release(); }
+}
+function requireAssigned(assignment, mechanicId) {
+  if (!assignment || String(assignment.mechanic_id) !== String(mechanicId)) fail(403, 'Bạn không phải thợ đang phụ trách phiếu');
+}
+
 
 /** Danh sách phiếu sửa kèm thông tin xe + khách hàng + thợ máy được phân công */
 async function findAll(status) {
@@ -19,7 +40,7 @@ async function findAll(status) {
      LEFT JOIN LATERAL (
        SELECT mechanic_id FROM mechanic_assignments
        WHERE repair_job_id = rj.id
-       ORDER BY assigned_at DESC LIMIT 1
+       ORDER BY assigned_at DESC, id DESC LIMIT 1
      ) ma ON true
      LEFT JOIN users m ON m.id = ma.mechanic_id
      WHERE ($1::VARCHAR IS NULL OR rj.status = $1)
@@ -41,11 +62,14 @@ async function findById(id) {
      JOIN vehicles v ON v.id = rj.vehicle_id
      JOIN customers c ON c.id = v.customer_id
      LEFT JOIN users u ON u.id = rj.receptionist_id
-     LEFT JOIN mechanic_assignments ma ON ma.repair_job_id = rj.id
+     LEFT JOIN LATERAL (
+       SELECT * FROM mechanic_assignments WHERE repair_job_id = rj.id
+       ORDER BY assigned_at DESC, id DESC LIMIT 1
+     ) ma ON true
      LEFT JOIN users m ON m.id = ma.mechanic_id
      LEFT JOIN diagnoses d ON d.repair_job_id = rj.id
      WHERE rj.id = $1
-     ORDER BY d.diagnosed_at DESC NULLS LAST
+     ORDER BY d.diagnosed_at DESC NULLS LAST, d.id DESC
      LIMIT 1`,
     [id]
   );
@@ -60,20 +84,18 @@ async function findById(id) {
  * serviceItems: mảng [{ serviceId, quantity }, ...] hoặc [1, 2]
  */
 async function create({ vehicleId, receptionistId, customerRequest, serviceItems }) {
-  const rawItems = serviceItems || [];
-  const items = rawItems.map(item => {
-    if (typeof item === 'number' || typeof item === 'string') {
-      return { service_id: Number(item), quantity: 1 };
-    }
-    return {
-      service_id: Number(item.serviceId || item.service_id || item.id),
-      quantity: Number(item.quantity || 1),
-    };
-  }).filter(item => Boolean(item.service_id));
-
+  const validation = validateReceptionData({ vehicleId, customerRequest });
+  if (!validation.valid) fail(400, validation.error);
+  const items = normalizeServiceItems(serviceItems).map(({ serviceId, quantity }) => ({ service_id: serviceId, quantity }));
+  if (!(await pool.query('SELECT id FROM vehicles WHERE id = $1', [vehicleId])).rowCount) fail(404, 'Không tìm thấy xe');
+  if (items.length) {
+    const ids = [...new Set(items.map(item => item.service_id))];
+    const found = await pool.query('SELECT id FROM services WHERE id = ANY($1::bigint[])', [ids]);
+    if (found.rowCount !== ids.length) fail(404, 'Không tìm thấy dịch vụ');
+  }
   const result = await pool.query(
     `SELECT create_repair_job_with_services($1, $2, $3, $4::jsonb) AS id`,
-    [vehicleId, receptionistId, customerRequest, JSON.stringify(items)]
+    [vehicleId, receptionistId, customerRequest.trim(), JSON.stringify(items)]
   );
 
   return findById(result.rows[0].id);
@@ -83,73 +105,42 @@ async function create({ vehicleId, receptionistId, customerRequest, serviceItems
  * Cập nhật trạng thái phiếu sửa.
  * Nếu chuyển sang 'completed' → tự động ghi nhận completed_at.
  */
-async function updateStatus(id, status) {
-  const isCompleted = status === 'completed';
-  const result = await pool.query(
-    `UPDATE repair_jobs
-     SET status = $2,
-         completed_at = CASE WHEN $3::boolean THEN CURRENT_TIMESTAMP ELSE completed_at END
-     WHERE id = $1
-     RETURNING *`,
-    [id, status, isCompleted]
-  );
-  return result.rows[0] || null;
+async function updateStatus(id, status, actor) {
+  return withLockedJob(id, async (client, job, assignment) => {
+    if (actor?.role === 'mechanic') requireAssigned(assignment, actor.id);
+    if (!isValidStatusTransition(job.status, status)) fail(409, 'Chuyển trạng thái không hợp lệ');
+    if (job.status === status) return job;
+    return (await client.query(`UPDATE repair_jobs SET status = $2,
+      completed_at = CASE WHEN $3::boolean THEN CURRENT_TIMESTAMP ELSE completed_at END
+      WHERE id = $1 RETURNING *`, [id, status, status === 'completed'])).rows[0];
+  });
 }
 
-/** Phân công thợ máy cho phiếu sửa (ghi vào mechanic_assignments + đổi status) */
 async function assignMechanic({ repairJobId, mechanicId, assignedBy }) {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    const assignment = await client.query(
-      `INSERT INTO mechanic_assignments (repair_job_id, mechanic_id, assigned_by)
-       VALUES ($1, $2, $3)
-       RETURNING *`,
-      [repairJobId, mechanicId, assignedBy]
-    );
-
-    await client.query(
-      `UPDATE repair_jobs SET status = 'diagnosing' WHERE id = $1`,
-      [repairJobId]
-    );
-
-    await client.query('COMMIT');
-    return assignment.rows[0];
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  requireId(mechanicId);
+  return withLockedJob(repairJobId, async (client, job, current) => {
+    if (!['pending', 'diagnosing'].includes(job.status)) fail(409, 'Phiếu không còn ở giai đoạn phân công');
+    const mechanic = (await client.query('SELECT role FROM users WHERE id = $1', [mechanicId])).rows[0];
+    if (!mechanic) fail(404, 'Không tìm thấy thợ');
+    if (mechanic.role !== 'mechanic') fail(400, 'Người nhận phải có vai trò thợ máy');
+    if (current && String(current.mechanic_id) === String(mechanicId)) return current;
+    const result = await client.query(`INSERT INTO mechanic_assignments (repair_job_id, mechanic_id, assigned_by)
+      VALUES ($1, $2, $3) RETURNING *`, [repairJobId, mechanicId, assignedBy]);
+    await client.query("UPDATE repair_jobs SET status = 'diagnosing' WHERE id = $1 AND status = 'pending'", [repairJobId]);
+    return result.rows[0];
+  });
 }
 
-/** Thợ máy ghi nhận kết quả chẩn đoán */
 async function addDiagnosis({ repairJobId, mechanicId, diagnosisResult, repairSuggestion }) {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    const result = await client.query(
-      `INSERT INTO diagnoses (repair_job_id, mechanic_id, diagnosis_result, repair_suggestion)
-       VALUES ($1, $2, $3, $4)
-       RETURNING *`,
-      [repairJobId, mechanicId, diagnosisResult, repairSuggestion]
-    );
-
-    await client.query(
-      `UPDATE repair_jobs SET status = 'diagnosing' WHERE id = $1 AND status = 'pending'`,
-      [repairJobId]
-    );
-
-    await client.query('COMMIT');
-    return result.rows[0];
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
+  const validation = validateDiagnosisData({ diagnosisResult, repairSuggestion });
+  if (!validation.valid) fail(400, validation.error);
+  return withLockedJob(repairJobId, async (client, job, assignment) => {
+    requireAssigned(assignment, mechanicId);
+    if (job.status !== 'diagnosing') fail(409, 'Chỉ được chẩn đoán phiếu đang diagnosing');
+    return (await client.query(`INSERT INTO diagnoses (repair_job_id, mechanic_id, diagnosis_result, repair_suggestion)
+      VALUES ($1, $2, $3, $4) RETURNING *`,
+      [repairJobId, mechanicId, diagnosisResult.trim(), repairSuggestion?.trim() ?? null])).rows[0];
+  });
 }
 
 async function getJobsForMechanic(mechanicId, status) {
@@ -158,8 +149,11 @@ async function getJobsForMechanic(mechanicId, status) {
            rj.*, v.license_plate, v.brand, v.model,
            c.full_name AS customer_name, c.phone AS customer_phone,
            d.diagnosis_result, d.repair_suggestion, d.diagnosed_at
-    FROM mechanic_assignments ma
-    JOIN repair_jobs rj ON rj.id = ma.repair_job_id
+    FROM repair_jobs rj
+    JOIN LATERAL (
+      SELECT * FROM mechanic_assignments WHERE repair_job_id = rj.id
+      ORDER BY assigned_at DESC, id DESC LIMIT 1
+    ) ma ON true
     JOIN vehicles v ON v.id = rj.vehicle_id
     JOIN customers c ON c.id = v.customer_id
     LEFT JOIN diagnoses d ON d.repair_job_id = rj.id
@@ -174,7 +168,7 @@ async function getJobsForMechanic(mechanicId, status) {
     innerQuery += ` AND rj.status != 'cancelled'`;
   }
 
-  innerQuery += ` ORDER BY rj.id, d.diagnosed_at DESC NULLS LAST`;
+  innerQuery += ` ORDER BY rj.id, d.diagnosed_at DESC NULLS LAST, d.id DESC`;
 
   const finalQuery = `
     SELECT * FROM (${innerQuery}) sub

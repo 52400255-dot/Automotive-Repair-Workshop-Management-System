@@ -7,12 +7,16 @@
  *   4. Tùy chọn: Chọn trước các dịch vụ chuẩn
  *   5. Gửi API tạo phiếu sửa chữa (kích hoạt Stored Procedure nguyên tử)
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import api from '../../services/api';
 
 export default function ReceptionPage() {
   const [customers, setCustomers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
+  const [vehiclesLoading, setVehiclesLoading] = useState(false);
+  const [vehiclesError, setVehiclesError] = useState(false);
+  const customerVersion = useRef(0);
+  const submitting = useRef(false);
   const [servicesList, setServicesList] = useState([]);
 
   // Form State
@@ -35,22 +39,31 @@ export default function ReceptionPage() {
       .catch((err) => setMessage({ text: 'Lỗi tải danh mục dịch vụ: ' + (err.response?.data?.message || err.message), type: 'error' }));
   }, []);
 
-  // Khi chọn khách hàng → tải danh sách xe của người đó
+  // Ignore responses belonging to a previous customer, including before effect cleanup.
   useEffect(() => {
-    if (!customerId) {
-      setVehicles([]);
-      setVehicleId('');
-      return;
-    }
+    if (!customerId) return;
+    let cancelled = false;
+    const version = customerVersion.current;
+    const active = () => !cancelled && version === customerVersion.current;
     api.get(`/customers/${customerId}/vehicles`)
-      .then((r) => setVehicles(r.data.data || []))
-      .catch((err) => setMessage({ text: 'Lỗi tải danh sách xe: ' + (err.response?.data?.message || err.message), type: 'error' }));
+      .then((r) => { if (active()) setVehicles(r.data.data || []); })
+      .catch((err) => {
+        if (active()) {
+          setVehiclesError(true);
+          setMessage({ text: 'Lỗi tải danh sách xe: ' + (err.response?.data?.message || err.message), type: 'error' });
+        }
+      })
+      .finally(() => { if (active()) setVehiclesLoading(false); });
+    return () => { cancelled = true; };
   }, [customerId]);
 
   function handleCustomerChange(value) {
+    customerVersion.current += 1;
     setCustomerId(value);
     setVehicleId('');
     setVehicles([]);
+    setVehiclesLoading(Boolean(value));
+    setVehiclesError(false);
   }
 
   function toggleService(serviceId) {
@@ -63,6 +76,8 @@ export default function ReceptionPage() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (submitting.current || vehiclesLoading || !vehicles.some(v => String(v.id) === String(vehicleId)) || !request.trim()) return;
+    submitting.current = true;
     setMessage({ text: '', type: '' });
     setLoading(true);
 
@@ -93,6 +108,7 @@ export default function ReceptionPage() {
         type: 'error',
       });
     } finally {
+      submitting.current = false;
       setLoading(false);
     }
   }
@@ -125,6 +141,7 @@ export default function ReceptionPage() {
           <label style={{ fontWeight: 600 }}>1. Khách hàng (*)</label>
           <select
             className="form-control"
+            disabled={loading}
             value={customerId}
             onChange={(e) => handleCustomerChange(e.target.value)}
             required
@@ -145,11 +162,11 @@ export default function ReceptionPage() {
             className="form-control"
             value={vehicleId}
             onChange={(e) => setVehicleId(e.target.value)}
-            disabled={!customerId}
+            disabled={!customerId || vehiclesLoading || loading}
             required
           >
             <option value="">
-              {!customerId ? '-- Vui lòng chọn khách hàng trước --' : '-- Chọn xe cần tiếp nhận --'}
+              {vehiclesLoading ? 'Đang tải xe...' : !customerId ? '-- Vui lòng chọn khách hàng trước --' : '-- Chọn xe cần tiếp nhận --'}
             </option>
             {vehicles.map((v) => (
               <option key={v.id} value={v.id}>
@@ -157,7 +174,7 @@ export default function ReceptionPage() {
               </option>
             ))}
           </select>
-          {customerId && vehicles.length === 0 && (
+          {customerId && !vehiclesLoading && !vehiclesError && vehicles.length === 0 && (
             <small style={{ color: '#fa8c16', display: 'block', marginTop: 4 }}>
               Khách hàng này chưa có xe trong hệ thống.
             </small>
@@ -229,7 +246,7 @@ export default function ReceptionPage() {
         <button
           type="submit"
           className="btn btn-primary"
-          disabled={loading || !customerId || !vehicleId}
+          disabled={loading || vehiclesLoading || !customerId || !vehicles.some(v => String(v.id) === String(vehicleId)) || !request.trim()}
           style={{ marginTop: '16px', padding: '10px 24px', fontSize: '15px' }}
         >
           {loading ? 'Đang tạo phiếu...' : 'Tiếp nhận xe & Tạo phiếu'}

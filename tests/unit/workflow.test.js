@@ -76,7 +76,7 @@ describe('normalizeServiceItems — Chuẩn hóa danh mục dịch vụ đầu v
     ]);
   });
 
-  test('loại bỏ các mục không hợp lệ (id <= 0 hoặc qty <= 0)', () => {
+  test('từ chối cả danh sách có mục không hợp lệ', () => {
     const raw = [
       { serviceId: 0, quantity: 1 },
       { serviceId: -5, quantity: 1 },
@@ -85,13 +85,12 @@ describe('normalizeServiceItems — Chuẩn hóa danh mục dịch vụ đầu v
       null,
       { serviceId: 7, quantity: 1 },
     ];
-    const normalized = normalizeServiceItems(raw);
-    assert.deepEqual(normalized, [{ serviceId: 7, quantity: 1 }]);
+    assert.throws(() => normalizeServiceItems(raw), { statusCode: 400 });
   });
 
   test('đầu vào rỗng hoặc null trả về mảng rỗng []', () => {
     assert.deepEqual(normalizeServiceItems([]), []);
-    assert.deepEqual(normalizeServiceItems(null), []);
+    assert.throws(() => normalizeServiceItems(null), { statusCode: 400 });
     assert.deepEqual(normalizeServiceItems(undefined), []);
   });
 });
@@ -136,5 +135,30 @@ describe('validateDiagnosisData — Xác thực dữ liệu chẩn đoán kỹ t
     assert.equal(validateDiagnosisData({ diagnosisResult: '' }).valid, false);
     assert.equal(validateDiagnosisData({ diagnosisResult: '   ' }).valid, false);
     assert.equal(validateDiagnosisData(null).valid, false);
+  });
+});
+
+describe('Validation regressions used by production services', () => {
+  test('rejects unsafe, fractional and non-numeric vehicle IDs', () => {
+    for (const vehicleId of [1.5, Infinity, true, {}, [], Number.MAX_SAFE_INTEGER + 1, '1e2']) {
+      assert.equal(validateReceptionData({ vehicleId, customerRequest: 'OK' }).valid, false);
+    }
+  });
+  test('wrong text types never throw TypeError', () => {
+    for (const value of [1, {}, [], true, null, '   ']) {
+      assert.equal(validateReceptionData({ vehicleId: 1, customerRequest: value }).valid, false);
+      assert.equal(validateDiagnosisData({ diagnosisResult: value }).valid, false);
+    }
+    assert.equal(validateDiagnosisData({ diagnosisResult: 'OK', repairSuggestion: {} }).valid, false);
+  });
+  test('rejects malformed services instead of silently dropping them', () => {
+    for (const value of [{}, null, [true], [1.5], [Infinity], [{serviceId: 1, quantity: 0}],
+      [{serviceId: 1, quantity: true}], [{serviceId: 1, quantity: 'Infinity'}], [{serviceId: 1, quantity: -1}]]) {
+      assert.throws(() => normalizeServiceItems(value), {statusCode: 400});
+    }
+  });
+  test('unknown states are invalid even when identical', () => {
+    assert.equal(isValidStatusTransition('unknown', 'unknown'), false);
+    assert.equal(isValidStatusTransition('__proto__', '__proto__'), false);
   });
 });
