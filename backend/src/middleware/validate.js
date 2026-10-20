@@ -147,7 +147,20 @@ function validateEntity(entity, partial = false) {
     if (Object.hasOwn(body, 'manufactureYear') && body.manufactureYear !== null
       && (!Number.isInteger(body.manufactureYear) || body.manufactureYear < 1 || body.manufactureYear > 9999))
       return reject('Năm sản xuất phải là số nguyên từ 1 đến 9999');
-    next();
-  };
-}
-module.exports.validateEntity = validateEntity;
+    if (
+      Object.hasOwn(body, 'odometerKm') &&
+    body.odometerKm !== null &&
+    (
+      !Number.isInteger(body.odometerKm) ||
+      body.odometerKm < 0 ||
+      body.odometerKm > 99999999
+    )
+  ) {
+    return reject(
+      'Số kilomet phải là số nguyên từ 0 đến 99999999'
+    );
+  }
+      next();
+    };
+  }
+  module.exports.validateEntity = validateEntity;

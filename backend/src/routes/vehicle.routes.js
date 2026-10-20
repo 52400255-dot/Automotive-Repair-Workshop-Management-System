@@ -27,5 +27,9 @@ router.post('/:id/receive', authorize('receptionist'), (req, res, next) => {
 
 router.post('/', authorize('receptionist', 'admin'), validateEntity('vehicle'), controller.create);
 router.put('/:id', authorize('receptionist', 'admin'), validateEntity('vehicle', true), controller.update);
-router.delete('/:id', authorize('admin'), controller.remove);
+router.delete(
+  '/:id',
+  authorize('receptionist', 'admin'),
+  controller.remove
+);
 module.exports = router;

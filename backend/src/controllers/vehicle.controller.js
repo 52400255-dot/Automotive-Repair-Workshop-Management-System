@@ -21,10 +21,31 @@ async function getById(req, res, next) {
 
 async function create(req, res, next) {
   try {
-    const { customerId, licensePlate, brand, model, manufactureYear } = req.body;
-    const created = await vehicleService.create({ customerId, licensePlate, brand, model, manufactureYear });
-    res.status(201).json({ success: true, data: created });
-  } catch (err) { next(err); }
+    const {
+      customerId,
+      licensePlate,
+      brand,
+      model,
+      manufactureYear,
+      odometerKm,
+    } = req.body;
+
+    const created = await vehicleService.create({
+      customerId,
+      licensePlate,
+      brand,
+      model,
+      manufactureYear,
+      odometerKm,
+    });
+
+    res.status(201).json({
+      success: true,
+      data: created,
+    });
+  } catch (err) {
+    next(err);
+  }
 }
 
 async function update(req, res, next) {
