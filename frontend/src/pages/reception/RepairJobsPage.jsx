@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import StatusBadge from '../../components/common/StatusBadge';
+import EstimateModal from './EstimateModal';
 
 export default function RepairJobsPage() {
   const [jobs, setJobs] = useState([]);
@@ -17,6 +18,7 @@ export default function RepairJobsPage() {
   const [assignModal, setAssignModal] = useState({ open: false, job: null });
   const [selectedMechanicId, setSelectedMechanicId] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [estimateJob, setEstimateJob] = useState(null);
 
   // Tải danh sách phiếu sửa chữa
   useEffect(() => {
@@ -68,6 +70,16 @@ export default function RepairJobsPage() {
       setSubmitting(false);
     }
   }
+  function handleEstimateCreated(jobId) {
+  setEstimateJob(null);
+
+  setNotice({
+    text: `Đã lập báo giá cho phiếu #${jobId}. Phiếu đã chuyển sang trạng thái chờ duyệt báo giá.`,
+    type: 'success',
+  });
+
+  setReload((current) => current + 1);
+}
 
   return (
     <div>
@@ -83,6 +95,9 @@ export default function RepairJobsPage() {
             <option value="">Tất cả trạng thái</option>
             <option value="pending">Chờ xử lý (pending)</option>
             <option value="diagnosing">Đang chẩn đoán (diagnosing)</option>
+            <option value="estimated">
+              Chờ duyệt báo giá (estimated)
+            </option>
             <option value="approved">Đã duyệt (approved)</option>
             <option value="in_repair">Đang sửa chữa (in_repair)</option>
             <option value="completed">Đã hoàn thành (completed)</option>
@@ -142,16 +157,40 @@ export default function RepairJobsPage() {
                   </td>
                   <td><StatusBadge status={j.status} /></td>
                   <td>
-                    {['pending', 'diagnosing'].includes(j.status) && ((j.status === 'pending' || !j.mechanic_name) ? (
-                      <button className="btn btn-primary" onClick={() => openAssign(j)} style={{ fontSize: '13px', padding: '6px 12px' }}>
-                        Phân công thợ
-                      </button>
-                    ) : (
-                      <button className="btn btn-outline" onClick={() => openAssign(j)} style={{ fontSize: '12px', padding: '4px 8px' }}>
-                        Đổi thợ
-                      </button>
-                    ))}
-                  </td>
+  <div className="action-buttons">
+    {['pending', 'diagnosing'].includes(j.status) &&
+      (
+        j.status === 'pending' ||
+        !j.mechanic_name
+      ? (
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => openAssign(j)}
+        >
+          Phân công thợ
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="btn btn-outline"
+          onClick={() => openAssign(j)}
+        >
+          Đổi thợ
+        </button>
+      ))}
+
+    {j.status === 'diagnosing' && (
+      <button
+        type="button"
+        className="btn btn-success"
+        onClick={() => setEstimateJob(j)}
+      >
+        Lập báo giá
+      </button>
+    )}
+  </div>
+</td>
                 </tr>
               ))}
               {!jobs.length && (
@@ -237,6 +276,13 @@ export default function RepairJobsPage() {
             </form>
           </div>
         </div>
+      )}
+            {estimateJob && (
+        <EstimateModal
+          job={estimateJob}
+          onClose={() => setEstimateJob(null)}
+          onCreated={handleEstimateCreated}
+        />
       )}
     </div>
   );

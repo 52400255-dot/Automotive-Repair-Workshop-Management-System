@@ -35,27 +35,67 @@ async function findById(id) {
   return result.rows[0] || null;
 }
 
-async function create({ customerId, licensePlate, brand, model, manufactureYear }) {
+async function create({
+  customerId,
+  licensePlate,
+  brand,
+  model,
+  manufactureYear,
+  odometerKm,
+}) {
   const result = await pool.query(
-    `INSERT INTO vehicles (customer_id, license_plate, brand, model, manufacture_year)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO vehicles (
+       customer_id,
+       license_plate,
+       brand,
+       model,
+       manufacture_year,
+       odometer_km
+     )
+     VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING *`,
-    [customerId, licensePlate, brand, model, manufactureYear]
+    [
+      customerId,
+      licensePlate,
+      brand,
+      model,
+      manufactureYear ?? null,
+      odometerKm ?? null,
+    ]
   );
+
   return result.rows[0];
 }
 
-async function update(id, { licensePlate, brand, model, manufactureYear }) {
+async function update(id, {
+  customerId,
+  licensePlate,
+  brand,
+  model,
+  manufactureYear,
+  odometerKm,
+}) {
   const result = await pool.query(
     `UPDATE vehicles
-     SET license_plate = COALESCE($2, license_plate),
-         brand = COALESCE($3, brand),
-         model = COALESCE($4, model),
-         manufacture_year = COALESCE($5, manufacture_year)
+     SET customer_id = COALESCE($2, customer_id),
+         license_plate = COALESCE($3, license_plate),
+         brand = COALESCE($4, brand),
+         model = COALESCE($5, model),
+         manufacture_year = COALESCE($6, manufacture_year),
+         odometer_km = COALESCE($7, odometer_km)
      WHERE id = $1
      RETURNING *`,
-    [id, licensePlate, brand, model, manufactureYear]
+    [
+      id,
+      customerId,
+      licensePlate,
+      brand,
+      model,
+      manufactureYear,
+      odometerKm,
+    ]
   );
+
   return result.rows[0] || null;
 }
 
@@ -74,7 +114,8 @@ async function remove(id) {
 async function getRepairHistory(vehicleId) {
   const result = await pool.query(
     `SELECT rj.id, rj.status, rj.customer_request, rj.received_at, rj.completed_at,
-            v.id AS vehicle_id, v.license_plate, v.brand, v.model, v.manufacture_year,
+            v.id AS vehicle_id, v.license_plate, v.brand, v.model,
+            v.manufacture_year, v.odometer_km,
             c.full_name AS customer_name, c.phone AS customer_phone,
             u.full_name AS receptionist_name,
             svc.services, svc.labor_total,

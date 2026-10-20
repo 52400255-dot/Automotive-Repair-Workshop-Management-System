@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { to: '/task-board', label: 'Bảng công việc', roles: ['mechanic'] },
   { to: '/inventory', label: 'Kho phụ tùng', roles: ['warehouse_staff', 'receptionist', 'admin'] },
   { to: '/customers', label: 'Khách hàng', roles: ['receptionist', 'admin'] },
+  { to: '/vehicles', label: 'Quản lý xe', roles: ['receptionist', 'admin'] },
   { to: '/portal', label: 'Cổng theo dõi khách hàng', roles: ['customer'] },
 ];
 
