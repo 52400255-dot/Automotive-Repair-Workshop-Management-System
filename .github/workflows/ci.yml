@@ -80,12 +80,11 @@ jobs:
           sleep 3
           curl -sf http://localhost:3000/api/health
           echo " <- health OK"
-      - name: Integration tests (US03 — vehicle repair history)
+      - name: Integration tests (API workflows)
         env:
           DB_HOST: localhost
           DB_PORT: 5432
           DB_USER: workshop_user
           DB_PASSWORD: workshop_pass
           DB_NAME: workshop_db
-          TEST_PORT: 3111
         run: npm run test:integration

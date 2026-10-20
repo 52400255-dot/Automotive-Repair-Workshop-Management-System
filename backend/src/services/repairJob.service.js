@@ -118,16 +118,43 @@ async function updateStatus(id, status, actor) {
 
 async function assignMechanic({ repairJobId, mechanicId, assignedBy }) {
   requireId(mechanicId);
-  return withLockedJob(repairJobId, async (client, job, current) => {
-    if (!['pending', 'diagnosing'].includes(job.status)) fail(409, 'Phiếu không còn ở giai đoạn phân công');
-    const mechanic = (await client.query('SELECT role FROM users WHERE id = $1', [mechanicId])).rows[0];
-    if (!mechanic) fail(404, 'Không tìm thấy thợ');
-    if (mechanic.role !== 'mechanic') fail(400, 'Người nhận phải có vai trò thợ máy');
-    if (current && String(current.mechanic_id) === String(mechanicId)) return current;
-    const result = await client.query(`INSERT INTO mechanic_assignments (repair_job_id, mechanic_id, assigned_by)
-      VALUES ($1, $2, $3) RETURNING *`, [repairJobId, mechanicId, assignedBy]);
-    await client.query("UPDATE repair_jobs SET status = 'diagnosing' WHERE id = $1 AND status = 'pending'", [repairJobId]);
-    return result.rows[0];
+
+  return withLockedJob(repairJobId, async (client, job) => {
+    if (!['pending', 'diagnosing'].includes(job.status)) {
+      fail(409, 'Phiếu không còn ở giai đoạn phân công');
+    }
+
+    const mechanicResult = await client.query(
+      'SELECT role FROM users WHERE id = $1',
+      [mechanicId]
+    );
+
+    const mechanic = mechanicResult.rows[0];
+
+    if (!mechanic) {
+      fail(404, 'Không tìm thấy thợ');
+    }
+
+    if (mechanic.role !== 'mechanic') {
+      fail(400, 'Người nhận phải có vai trò thợ máy');
+    }
+
+    const assignmentFunctionResult = await client.query(
+      `SELECT assign_mechanic_to_job($1, $2, $3) AS assignment_id`,
+      [repairJobId, mechanicId, assignedBy]
+    );
+
+    const assignmentId =
+      assignmentFunctionResult.rows[0].assignment_id;
+
+    const assignmentResult = await client.query(
+      `SELECT *
+       FROM mechanic_assignments
+       WHERE id = $1`,
+      [assignmentId]
+    );
+
+    return assignmentResult.rows[0];
   });
 }
 
