@@ -19,6 +19,10 @@ router.get('/:id/vehicles', controller.getVehicles);
 
 router.post('/', authorize('receptionist', 'admin'), validateEntity('customer'), controller.create);
 router.put('/:id', authorize('receptionist', 'admin'), validateEntity('customer', true), controller.update);
-router.delete('/:id', authorize('admin'), controller.remove);
+router.delete(
+  '/:id',
+  authorize('receptionist', 'admin'),
+  controller.remove
+);
 
 module.exports = router;

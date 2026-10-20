@@ -123,7 +123,7 @@ module.exports = { validate, validateIntParam };
 /** Validation for the existing customer/vehicle forms and partial updates. */
 function validateEntity(entity, partial = false) {
   const specs = entity === 'customer'
-    ? { fullName: 150, phone: 20, email: 255 }
+    ? { fullName: 150, phone: 20, email: 255, address: 255 }
     : { licensePlate: 20, brand: 100, model: 100 };
   const required = entity === 'customer' ? ['fullName', 'phone'] : ['customerId', 'licensePlate', 'brand', 'model'];
   return (req, res, next) => {
@@ -135,7 +135,7 @@ function validateEntity(entity, partial = false) {
     }
     for (const [field, max] of Object.entries(specs)) {
       if (!Object.hasOwn(body, field)) continue;
-      if (field === 'email' && body[field] === null) continue;
+      if (['email', 'address'].includes(field) && body[field] === null) continue;
       if (typeof body[field] !== 'string' || !body[field].trim() || body[field].trim().length > max)
         return reject(`${field} phải là chuỗi có nội dung, tối đa ${max} ký tự`);
       body[field] = body[field].trim();
