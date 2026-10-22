@@ -59,7 +59,7 @@ const codeOf = (p) => p.part_code || p.sku || p.code || '';
 
 export default function TaskBoardPage() {
   const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('all');
   const [toast, setToast] = useState({ text: '', type: '' });
   const [reload, setReload] = useState(0);
@@ -94,7 +94,6 @@ export default function TaskBoardPage() {
   // Tải toàn bộ phiếu của thợ 1 lần; tab lọc ở client nên phản hồi tức thì.
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     api.get('/repair-jobs/my-jobs')
       .then((r) => { if (!cancelled) setJobs(r.data.data || []); })
       .catch((err) => {
