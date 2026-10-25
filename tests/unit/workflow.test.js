@@ -10,6 +10,7 @@ const {
   normalizeServiceItems,
   validateReceptionData,
   validateDiagnosisData,
+  validateEstimateData,
 } = require('../../backend/src/utils/workflow');
 
 describe('isValidStatusTransition — Chuyển đổi trạng thái phiếu sửa chữa', () => {
@@ -37,6 +38,8 @@ describe('isValidStatusTransition — Chuyển đổi trạng thái phiếu sử
   test('các chuyển đổi nhảy cóc hoặc không hợp lệ bị từ chối', () => {
     assert.equal(isValidStatusTransition('pending', 'completed'), false);
     assert.equal(isValidStatusTransition('pending', 'in_repair'), false);
+    assert.equal(isValidStatusTransition('diagnosing', 'in_repair'), false);
+    assert.equal(isValidStatusTransition('estimated', 'completed'), false);
     assert.equal(isValidStatusTransition('completed', 'pending'), false);
     assert.equal(isValidStatusTransition('cancelled', 'in_repair'), false);
   });
@@ -135,6 +138,57 @@ describe('validateDiagnosisData — Xác thực dữ liệu chẩn đoán kỹ t
     assert.equal(validateDiagnosisData({ diagnosisResult: '' }).valid, false);
     assert.equal(validateDiagnosisData({ diagnosisResult: '   ' }).valid, false);
     assert.equal(validateDiagnosisData(null).valid, false);
+  });
+});
+
+describe('validateEstimateData — Xác thực payload báo giá (US13)', () => {
+  test('chấp nhận báo giá hợp lệ và chuẩn hóa dữ liệu trước khi lưu', () => {
+    const result = validateEstimateData({
+      repairJobId: '12',
+      items: [
+        { itemType: 'labor', description: '  Công sửa chữa  ', quantity: '1.5', unitPrice: '120000.00' },
+        { itemType: 'part', description: 'Bugi', quantity: 2, unitPrice: 35000 },
+      ],
+    });
+    assert.equal(result.valid, true);
+    assert.deepEqual(result.items, [
+      { itemType: 'labor', description: 'Công sửa chữa', quantity: 1.5, unitPrice: 120000 },
+      { itemType: 'part', description: 'Bugi', quantity: 2, unitPrice: 35000 },
+    ]);
+    assert.equal(result.totalAmount, 250000);
+  });
+
+  test('từ chối mã phiếu, danh sách hạng mục và kiểu dữ liệu không hợp lệ', () => {
+    for (const repairJobId of [0, -1, 1.5, Infinity, true, 'abc', Number.MAX_SAFE_INTEGER + 1]) {
+      assert.equal(validateEstimateData({ repairJobId, items: [{
+        itemType: 'labor', description: 'Công sửa', quantity: 1, unitPrice: 100,
+      }] }).valid, false);
+    }
+    for (const items of [undefined, null, [], 'labor', [null], [[]], [{ itemType: 'unknown' }]]) {
+      assert.equal(validateEstimateData({ repairJobId: 1, items }).valid, false);
+    }
+  });
+
+  test('từ chối mô tả, số lượng và đơn giá ngoài giới hạn', () => {
+    const validItem = { itemType: 'part', description: 'Bugi', quantity: 1, unitPrice: 10 };
+    for (const item of [
+      { ...validItem, description: '' },
+      { ...validItem, description: 'x'.repeat(501) },
+      { ...validItem, quantity: 0 },
+      { ...validItem, quantity: -1 },
+      { ...validItem, quantity: 'Infinity' },
+      { ...validItem, quantity: 10000000000 },
+      { ...validItem, unitPrice: -1 },
+      { ...validItem, unitPrice: NaN },
+      { ...validItem, unitPrice: 1000000000000 },
+      { ...validItem, unitPrice: true },
+    ]) {
+      assert.equal(validateEstimateData({ repairJobId: 1, items: [item] }).valid, false);
+    }
+    assert.equal(validateEstimateData({
+      repairJobId: 1,
+      items: [validItem, { ...validItem, unitPrice: 999999999999.99 }],
+    }).valid, false, 'Tổng báo giá vượt giới hạn NUMERIC(14,2) phải bị từ chối');
   });
 });
 
