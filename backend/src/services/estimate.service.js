@@ -2,6 +2,11 @@
  * estimate.service — Báo giá: tạo, tính tiền, duyệt/từ chối
  */
 const { pool } = require('../config/db');
+const { isValidStatusTransition, validateEstimateData } = require('../utils/workflow');
+
+const fail = (statusCode, message) => {
+  throw Object.assign(new Error(message), { statusCode });
+};
 
 async function findById(id) {
   const estimate = await pool.query('SELECT * FROM estimates WHERE id = $1', [id]);
@@ -46,23 +51,32 @@ async function findByJobId(repairJobId) {
  * Tổng tiền tự tính từ danh sách details.
  * items: [{ itemType, description, quantity, unitPrice }]
  */
-async function create({ repairJobId, items }, creatorId) {
+async function create({ repairJobId, items }) {
+  const validation = validateEstimateData({ repairJobId, items });
+  if (!validation.valid) fail(400, validation.error);
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
-    const total = items.reduce(
-      (sum, it) => sum + Number(it.quantity) * Number(it.unitPrice), 0
+    const jobResult = await client.query(
+      'SELECT id, status FROM repair_jobs WHERE id = $1 FOR UPDATE',
+      [Number(repairJobId)]
     );
+    const job = jobResult.rows[0];
+    if (!job) fail(404, 'Không tìm thấy phiếu sửa chữa');
+    if (job.status !== 'diagnosing' || !isValidStatusTransition(job.status, 'estimated')) {
+      fail(409, 'Chỉ được lập báo giá cho phiếu đang chẩn đoán');
+    }
 
     const est = await client.query(
       `INSERT INTO estimates (repair_job_id, status, total_amount)
        VALUES ($1, 'sent', $2)
        RETURNING *`,
-      [repairJobId, total]
+      [Number(repairJobId), validation.totalAmount]
     );
 
-    for (const it of items) {
+    for (const it of validation.items) {
       await client.query(
         `INSERT INTO estimate_details
          (estimate_id, item_type, description, quantity, unit_price)
@@ -72,10 +86,11 @@ async function create({ repairJobId, items }, creatorId) {
     }
 
     // Phiếu sửa chuyển sang trạng thái chờ khách duyệt báo giá
-    await client.query(
-      `UPDATE repair_jobs SET status = 'estimated' WHERE id = $1`,
-      [repairJobId]
+    const updatedJob = await client.query(
+      `UPDATE repair_jobs SET status = 'estimated' WHERE id = $1 AND status = 'diagnosing' RETURNING id`,
+      [Number(repairJobId)]
     );
+    if (!updatedJob.rowCount) fail(409, 'Phiếu sửa chữa đã thay đổi trạng thái, không thể lập báo giá');
 
     await client.query('COMMIT');
     return findById(est.rows[0].id);
@@ -93,6 +108,22 @@ async function approve(id, actor) {
   try {
     await client.query('BEGIN');
     await requireCustomerOwnership(client, id, actor);
+    const locked = await client.query(
+      `SELECT e.*, rj.status AS repair_job_status
+       FROM estimates e
+       JOIN repair_jobs rj ON rj.id = e.repair_job_id
+       WHERE e.id = $1
+       FOR UPDATE OF e, rj`,
+      [id]
+    );
+    const current = locked.rows[0];
+    if (!current || current.status !== 'sent') {
+      fail(404, 'Báo giá không tồn tại hoặc đã được xử lý');
+    }
+    if (current.repair_job_status !== 'estimated'
+      || !isValidStatusTransition(current.repair_job_status, 'approved')) {
+      fail(409, 'Phiếu sửa chữa không ở trạng thái chờ duyệt báo giá');
+    }
     const result = await client.query(
       `UPDATE estimates SET status = 'approved', approved_at = CURRENT_TIMESTAMP
        WHERE id = $1 AND status = 'sent'
@@ -103,10 +134,11 @@ async function approve(id, actor) {
     if (!estimate) {
       throw Object.assign(new Error('Báo giá không tồn tại hoặc đã được xử lý'), { statusCode: 404 });
     }
-    await client.query(
-      `UPDATE repair_jobs SET status = 'approved' WHERE id = $1`,
+    const updatedJob = await client.query(
+      `UPDATE repair_jobs SET status = 'approved' WHERE id = $1 AND status = 'estimated' RETURNING id`,
       [estimate.repair_job_id]
     );
+    if (!updatedJob.rowCount) fail(409, 'Phiếu sửa chữa đã thay đổi trạng thái, không thể duyệt báo giá');
     await client.query('COMMIT');
     return findById(id);
   } catch (err) {
@@ -123,6 +155,22 @@ async function reject(id, actor) {
   try {
     await client.query('BEGIN');
     await requireCustomerOwnership(client, id, actor);
+    const locked = await client.query(
+      `SELECT e.*, rj.status AS repair_job_status
+       FROM estimates e
+       JOIN repair_jobs rj ON rj.id = e.repair_job_id
+       WHERE e.id = $1
+       FOR UPDATE OF e, rj`,
+      [id]
+    );
+    const current = locked.rows[0];
+    if (!current || current.status !== 'sent') {
+      fail(404, 'Báo giá không tồn tại hoặc đã được xử lý');
+    }
+    if (current.repair_job_status !== 'estimated'
+      || !isValidStatusTransition(current.repair_job_status, 'cancelled')) {
+      fail(409, 'Phiếu sửa chữa không ở trạng thái chờ duyệt báo giá');
+    }
     const result = await client.query(
       `UPDATE estimates SET status = 'rejected'
        WHERE id = $1 AND status = 'sent'
@@ -133,10 +181,11 @@ async function reject(id, actor) {
     if (!estimate) {
       throw Object.assign(new Error('Báo giá không tồn tại hoặc đã được xử lý'), { statusCode: 404 });
     }
-    await client.query(
-      `UPDATE repair_jobs SET status = 'cancelled' WHERE id = $1`,
+    const updatedJob = await client.query(
+      `UPDATE repair_jobs SET status = 'cancelled' WHERE id = $1 AND status = 'estimated' RETURNING id`,
       [estimate.repair_job_id]
     );
+    if (!updatedJob.rowCount) fail(409, 'Phiếu sửa chữa đã thay đổi trạng thái, không thể từ chối báo giá');
     await client.query('COMMIT');
     return findById(id);
   } catch (err) {

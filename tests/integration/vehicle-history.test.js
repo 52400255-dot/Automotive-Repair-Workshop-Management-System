@@ -32,17 +32,18 @@ const SECRET = 'integration_test_secret';
 /** Ký JWT trực tiếp (middleware chỉ đọc payload, không truy vấn DB) */
 const token = (user) => jwt.sign(user, SECRET, { expiresIn: '1h' });
 
-const tokens = {
+let tokens = {
   receptionist: token({ id: '1', role: 'receptionist', email: 'rec.test@workshop.vn' }),
   manager: token({ id: '5', role: 'service_manager', email: 'mgr.test@workshop.vn' }),
   mechanic: token({ id: '3', role: 'mechanic', email: 'mec.test@workshop.vn' }),
-  ownerCustomer: token({ id: '501', role: 'customer', email: 'US03-Owner@Example.com' }),
-  strangerCustomer: token({ id: '502', role: 'customer', email: 'nobody@example.com' }),
+  ownerCustomer: null,
+  strangerCustomer: null,
 };
 
 let server;
 let db;
 const fixtures = { receptionist: null, mechanic: null, sparePart: null,
+  customerUserA: null, customerUserB: null,
   customerA: null, customerB: null, vehicleA: null, vehicleB: null,
   jobA1: null, jobA2: null, jobB1: null, service: null };
 
@@ -98,13 +99,31 @@ before(async () => {
     `INSERT INTO spare_parts (part_code, part_name, unit, stock_quantity, unit_price, min_stock)
      VALUES ('US03-PART', 'Loc dau', 'piece', 100, 150000, 5) RETURNING id`)).id;
 
+  // Khách hàng phải được liên kết với users.id; quyền sở hữu không suy ra từ email.
+  fixtures.customerUserA = (await mk(
+    `INSERT INTO users (full_name, email, password_hash, role)
+     VALUES ('US03 Owner', 'us03.owner@integration.test', 'not-a-real-hash', 'customer')
+     RETURNING id`)).id;
+  fixtures.customerUserB = (await mk(
+    `INSERT INTO users (full_name, email, password_hash, role)
+     VALUES ('US03 Stranger', 'us03.stranger@integration.test', 'not-a-real-hash', 'customer')
+     RETURNING id`)).id;
+  tokens.ownerCustomer = token({
+    id: String(fixtures.customerUserA), role: 'customer', email: 'us03.owner@integration.test',
+  });
+  tokens.strangerCustomer = token({
+    id: String(fixtures.customerUserB), role: 'customer', email: 'us03.stranger@integration.test',
+  });
+
   // ---- 2 khách hàng, mỗi khách 1 xe; phiếu sửa nằm rải rác để kiểm tra phân tách theo xe
   fixtures.customerA = (await mk(
-    `INSERT INTO customers (full_name, phone, email)
-     VALUES ('US03 Owner', '0900000001', 'us03-owner@example.com') RETURNING id`)).id;
+    `INSERT INTO customers (user_id, full_name, phone, email)
+     VALUES ($1, 'US03 Owner', '0900000001', 'us03-owner@example.com') RETURNING id`,
+    [fixtures.customerUserA])).id;
   fixtures.customerB = (await mk(
-    `INSERT INTO customers (full_name, phone, email)
-     VALUES ('US03 Stranger', '0900000002', 'us03-stranger@example.com') RETURNING id`)).id;
+    `INSERT INTO customers (user_id, full_name, phone, email)
+     VALUES ($1, 'US03 Stranger', '0900000002', 'us03-stranger@example.com') RETURNING id`,
+    [fixtures.customerUserB])).id;
 
   fixtures.vehicleA = (await mk(
     `INSERT INTO vehicles (customer_id, license_plate, brand, model, manufacture_year)
@@ -176,7 +195,8 @@ after(async () => {
     if (fixtures.vehicleA) await safe('DELETE FROM vehicles WHERE id = ANY($1::bigint[])', [[fixtures.vehicleA, fixtures.vehicleB].filter(Boolean)]);
     if (fixtures.customerA) await safe('DELETE FROM customers WHERE id = ANY($1::bigint[])', [[fixtures.customerA, fixtures.customerB].filter(Boolean)]);
     if (fixtures.sparePart) await safe('DELETE FROM spare_parts WHERE id = $1', [fixtures.sparePart]);
-    const userIds = [fixtures.receptionist, fixtures.mechanic].filter(Boolean);
+    const userIds = [fixtures.receptionist, fixtures.mechanic,
+      fixtures.customerUserA, fixtures.customerUserB].filter(Boolean);
     if (userIds.length) await safe('DELETE FROM users WHERE id = ANY($1::bigint[])', [userIds]);
     await db.end();
   }

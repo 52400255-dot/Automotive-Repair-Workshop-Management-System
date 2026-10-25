@@ -38,6 +38,7 @@ for (const file of [path.join(ROOT, 'backend', '.env'), path.join(ROOT, '.env')]
  */
 function requireTestDbConfig(envPrefix = 'DB') {
   const password = process.env[`${envPrefix}_PASSWORD`];
+  const database = process.env[`${envPrefix}_NAME`];
   if (!password) {
     throw new Error(
       `[test] Thiếu ${envPrefix}_PASSWORD. Hãy khai báo mật khẩu trong file .env ở thư mục gốc `
@@ -45,11 +46,19 @@ function requireTestDbConfig(envPrefix = 'DB') {
       + `${envPrefix}_PASSWORD=... npm run test:integration`
     );
   }
+  // Integration tests insert fixtures and must never default to a developer's
+  // application/demo database. Require an explicitly named test database.
+  if (!database || !/(?:^|[_-])test(?:[_-]|$)/i.test(database)) {
+    throw new Error(
+      `[test] ${envPrefix}_NAME phải trỏ tới một database riêng có tên chứa "test" `
+      + '(ví dụ workshop_test_db); không chạy integration test trên database ứng dụng/demo.'
+    );
+  }
   return {
     host: process.env[`${envPrefix}_HOST`] || 'localhost',
     port: Number(process.env[`${envPrefix}_PORT`] || 5432),
     user: process.env[`${envPrefix}_USER`] || 'workshop_user',
-    database: process.env[`${envPrefix}_NAME`] || 'workshop_db',
+    database,
     password,
   };
 }

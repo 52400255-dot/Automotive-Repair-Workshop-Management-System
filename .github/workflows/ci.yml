@@ -52,7 +52,7 @@ jobs:
       DB_HOST: localhost
       DB_PORT: 5432
       DB_USER: workshop_user
-      DB_NAME: workshop_db
+      DB_NAME: workshop_test_db
       DB_PASSWORD: ${{ secrets.CI_DB_PASSWORD || 'ci_only_throwaway_not_a_real_secret' }}
       JWT_SECRET: ${{ secrets.CI_JWT_SECRET || 'ci_only_throwaway_jwt_secret_at_least_32_chars' }}
     services:
@@ -61,7 +61,7 @@ jobs:
         env:
           POSTGRES_USER: workshop_user
           POSTGRES_PASSWORD: ${{ secrets.CI_DB_PASSWORD || 'ci_only_throwaway_not_a_real_secret' }}
-          POSTGRES_DB: workshop_db
+          POSTGRES_DB: workshop_test_db
         ports:
           - 5432:5432
         options: >-
@@ -91,5 +91,5 @@ jobs:
           sleep 3
           curl -sf http://localhost:3000/api/health
           echo " <- health OK"
-      - name: Integration tests (US03 — vehicle repair history)
+      - name: Integration tests (repair, estimate and inventory workflows)
         run: npm run test:integration

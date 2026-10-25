@@ -17,8 +17,8 @@ async function getById(req, res, next) {
 
 async function create(req, res, next) {
   try {
-    const { repairJobId, items } = req.body;
-    const created = await estimateService.create({ repairJobId, items }, req.user.id);
+    const { repairJobId, items } = req.body || {};
+    const created = await estimateService.create({ repairJobId, items });
     res.status(201).json({ success: true, data: created });
   } catch (err) { next(err); }
 }

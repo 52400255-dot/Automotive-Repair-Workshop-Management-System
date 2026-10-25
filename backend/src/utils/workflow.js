@@ -82,10 +82,76 @@ function validateDiagnosisData(data) {
   return { valid: true };
 }
 
+/**
+ * Kiểm tra và chuẩn hóa payload báo giá theo giới hạn của schema PostgreSQL.
+ * @param {{ repairJobId: any, items: any }} data
+ * @returns {{ valid: boolean, error?: string, items?: Array, totalAmount?: number }}
+ */
+function validateEstimateData(data) {
+  const invalid = (error) => ({ valid: false, error });
+  if (!data || !isPositiveId(data.repairJobId)) {
+    return invalid('Mã phiếu sửa chữa (repairJobId) không hợp lệ');
+  }
+  if (!Array.isArray(data.items) || data.items.length === 0) {
+    return invalid('Báo giá phải có ít nhất một hạng mục');
+  }
+
+  const maxQuantity = 9999999999.99; // NUMERIC(12,2)
+  const maxAmount = 999999999999.99; // NUMERIC(14,2)
+  const maxAmountCents = 99999999999999;
+  let totalCents = 0;
+  const items = [];
+
+  for (const item of data.items) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      return invalid('Hạng mục báo giá không hợp lệ');
+    }
+    const { itemType, description } = item;
+    const quantity = item.quantity;
+    const unitPrice = item.unitPrice ?? item.unit_price;
+    const validNumber = (value) => (typeof value === 'number'
+      || (typeof value === 'string' && value.trim() !== '')) && Number.isFinite(Number(value));
+
+    if (!['labor', 'part', 'other'].includes(itemType)) {
+      return invalid('Loại hạng mục báo giá không hợp lệ');
+    }
+    if (typeof description !== 'string' || !description.trim() || description.trim().length > 500) {
+      return invalid('Mô tả hạng mục phải có từ 1 đến 500 ký tự');
+    }
+    if (!validNumber(quantity) || Number(quantity) <= 0 || Number(quantity) > maxQuantity) {
+      return invalid('Số lượng hạng mục phải lớn hơn 0 và không vượt giới hạn cho phép');
+    }
+    if (!validNumber(unitPrice) || Number(unitPrice) < 0 || Number(unitPrice) > maxAmount) {
+      return invalid('Đơn giá phải là số không âm và không vượt giới hạn cho phép');
+    }
+
+    // Chuẩn hóa hai cột NUMERIC(...,2) trước khi tính tổng để số lưu và số báo giá khớp nhau.
+    const normalizedQuantity = Math.round(Number(quantity) * 100) / 100;
+    const normalizedUnitPrice = Math.round(Number(unitPrice) * 100) / 100;
+    const lineCents = Math.round(normalizedQuantity * normalizedUnitPrice * 100);
+    if (!Number.isSafeInteger(lineCents) || lineCents > maxAmountCents) {
+      return invalid('Thành tiền hạng mục vượt giới hạn cho phép');
+    }
+    totalCents += lineCents;
+    if (!Number.isSafeInteger(totalCents) || totalCents > maxAmountCents) {
+      return invalid('Tổng báo giá vượt giới hạn cho phép');
+    }
+    items.push({
+      itemType,
+      description: description.trim(),
+      quantity: normalizedQuantity,
+      unitPrice: normalizedUnitPrice,
+    });
+  }
+
+  return { valid: true, items, totalAmount: totalCents / 100 };
+}
+
 module.exports = {
   isPositiveId,
   isValidStatusTransition,
   normalizeServiceItems,
   validateReceptionData,
   validateDiagnosisData,
+  validateEstimateData,
 };

@@ -271,18 +271,8 @@ function ImportModal({ part, onClose, onSaved }) {
 
     setSubmitting(true);
     try {
-<<<<<<< Updated upstream
       await api.post(`/spare-parts/${part.id}/import`, { quantity: Number(quantity) });
       onSaved(`Đã nhập ${quantity} ${part.unit} cho "${part.part_name}".`);
-=======
-      await api.post(`/spare-parts/${usageForm.partId}/deduct`, {
-        repairJobId: Number(usageForm.repairJobId),
-        quantity: Number(usageForm.quantity)
-      });
-      setNotice(`Đã ghi nhận phụ tùng cho Phiếu #${usageForm.repairJobId} thành công!`);
-      setUsageForm({ repairJobId: '', partId: '', quantity: 1 });
-      setReload((n) => n + 1);
->>>>>>> Stashed changes
     } catch (err) {
       setError(errorText(err, 'Không nhập kho được.'));
       setSubmitting(false);

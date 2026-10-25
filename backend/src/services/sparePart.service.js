@@ -2,6 +2,7 @@
  * sparePart.service — Quản lý phụ tùng, trừ kho, cảnh báo hết hàng
  */
 const { pool } = require('../config/db');
+const { isPositiveId } = require('../utils/workflow');
 
 async function findAll() {
   const result = await pool.query('SELECT * FROM spare_parts ORDER BY id');
@@ -53,8 +54,21 @@ async function findLowStock() {
  * kiểm tra tồn kho trước khi trừ.
  */
 async function deductForJob({ repairJobId, sparePartId, quantity, recordedBy, recordedByRole }) {
-  const amount = Number(quantity);
-  if (!Number.isFinite(amount) || amount <= 0) {
+  if (!isPositiveId(repairJobId) || !isPositiveId(sparePartId)) {
+    throw Object.assign(new Error('Mã phiếu sửa chữa hoặc phụ tùng không hợp lệ'), { statusCode: 400 });
+  }
+  if (!['number', 'string'].includes(typeof quantity) || String(quantity).trim() === '') {
+    throw Object.assign(new Error('Số lượng sử dụng phải là số hợp lệ'), { statusCode: 400 });
+  }
+  const rawAmount = Number(quantity);
+  if (!Number.isFinite(rawAmount) || rawAmount <= 0) {
+    throw Object.assign(new Error('Số lượng sử dụng phải lớn hơn 0'), { statusCode: 400 });
+  }
+  if (rawAmount > 9999999999.99) {
+    throw Object.assign(new Error('Số lượng sử dụng vượt giới hạn cho phép'), { statusCode: 400 });
+  }
+  const amount = Math.round(rawAmount * 100) / 100;
+  if (amount <= 0) {
     throw Object.assign(new Error('Số lượng sử dụng phải lớn hơn 0'), { statusCode: 400 });
   }
   const client = await pool.connect();
@@ -62,11 +76,15 @@ async function deductForJob({ repairJobId, sparePartId, quantity, recordedBy, re
     await client.query('BEGIN');
 
     const jobResult = await client.query(
-      'SELECT id FROM repair_jobs WHERE id = $1 FOR UPDATE',
-      [repairJobId]
+      'SELECT id, status FROM repair_jobs WHERE id = $1 FOR UPDATE',
+      [Number(repairJobId)]
     );
-    if (!jobResult.rows[0]) {
+    const job = jobResult.rows[0];
+    if (!job) {
       throw Object.assign(new Error('Không tìm thấy phiếu sửa chữa'), { statusCode: 404 });
+    }
+    if (job.status !== 'in_repair') {
+      throw Object.assign(new Error('Chỉ được trừ phụ tùng cho phiếu đang sửa chữa'), { statusCode: 409 });
     }
     if (recordedByRole === 'mechanic') {
       const assigned = await client.query(
@@ -92,7 +110,7 @@ async function deductForJob({ repairJobId, sparePartId, quantity, recordedBy, re
     // Khóa dòng phụ tùng để đảm bảo trừ kho tuần tự
     const partResult = await client.query(
       'SELECT * FROM spare_parts WHERE id = $1 FOR UPDATE',
-      [sparePartId]
+      [Number(sparePartId)]
     );
     const part = partResult.rows[0];
     if (!part) {
@@ -107,20 +125,20 @@ async function deductForJob({ repairJobId, sparePartId, quantity, recordedBy, re
       `INSERT INTO used_parts (repair_job_id, spare_part_id, quantity, unit_price_at_time)
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [repairJobId, sparePartId, amount, part.unit_price]
+      [Number(repairJobId), Number(sparePartId), amount, part.unit_price]
     );
 
     // Trừ tồn kho
     await client.query(
       'UPDATE spare_parts SET stock_quantity = stock_quantity - $2 WHERE id = $1',
-      [sparePartId, amount]
+      [Number(sparePartId), amount]
     );
 
     // Ghi lịch biến động kho (export)
     await client.query(
       `INSERT INTO inventory_movements (spare_part_id, recorded_by, movement_type, quantity)
        VALUES ($1, $2, 'export', $3)`,
-      [sparePartId, recordedBy, amount]
+      [Number(sparePartId), recordedBy, amount]
     );
 
     await client.query('COMMIT');
