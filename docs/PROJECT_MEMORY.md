@@ -146,7 +146,7 @@ Triển khai hoàn chỉnh và kiểm thử luồng sửa chữa: **Tiếp nhậ
 ### Địa chỉ cổng (Ports):
 - **Giao diện Web (Frontend)**: [http://localhost:5173](http://localhost:5173) (hoặc [http://localhost:8080](http://localhost:8080) nếu chạy Docker)
 - **API Backend**: [http://localhost:3000/api/v1](http://localhost:3000/api/v1)
-- **Cơ sở dữ liệu (PostgreSQL)**: `localhost:5432` (db: `workshop_db`, user: `workshop_user`, pass: `workshop_pass`)
+- **Cơ sở dữ liệu (PostgreSQL)**: `localhost:5432` — tên database, user và mật khẩu **không ghi trong tài liệu nữa**; mỗi người tự khai báo trong file `.env` ở thư mục gốc (xem `.env.example`). Xem Buổi 9 – Đầu việc 3.
 
 ### Danh sách tài khoản demo có sẵn trong hệ thống:
 | Vai trò | Email đăng nhập | Mật khẩu | Chức năng kiểm thử Tuần 3 |

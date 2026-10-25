@@ -12,6 +12,31 @@ async function list(req, res, next) {
   }
 }
 
+async function getMine(req, res, next) {
+  try {
+    const customer = await customerService.findByUserId(req.user.id);
+    if (!customer) {
+      return res.status(404).json({ success: false, message: 'Tài khoản chưa được liên kết với hồ sơ khách hàng' });
+    }
+    res.json({ success: true, data: customer });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function getMyVehicles(req, res, next) {
+  try {
+    const customer = await customerService.findByUserId(req.user.id);
+    if (!customer) {
+      return res.status(404).json({ success: false, message: 'Tài khoản chưa được liên kết với hồ sơ khách hàng' });
+    }
+    const vehicles = await customerService.getVehicles(customer.id);
+    res.json({ success: true, data: vehicles });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function getById(req, res, next) {
   try {
     const customer = await customerService.findById(req.params.id);
@@ -114,6 +139,8 @@ async function getVehicles(req, res, next) {
 
 module.exports = {
   list,
+  getMine,
+  getMyVehicles,
   getById,
   create,
   update,

@@ -52,10 +52,42 @@ async function findLowStock() {
  * Dùng transaction + row lock (FOR UPDATE) để tránh race condition,
  * kiểm tra tồn kho trước khi trừ.
  */
-async function deductForJob({ repairJobId, sparePartId, quantity, recordedBy }) {
+async function deductForJob({ repairJobId, sparePartId, quantity, recordedBy, recordedByRole }) {
+  const amount = Number(quantity);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw Object.assign(new Error('Số lượng sử dụng phải lớn hơn 0'), { statusCode: 400 });
+  }
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+
+    const jobResult = await client.query(
+      'SELECT id FROM repair_jobs WHERE id = $1 FOR UPDATE',
+      [repairJobId]
+    );
+    if (!jobResult.rows[0]) {
+      throw Object.assign(new Error('Không tìm thấy phiếu sửa chữa'), { statusCode: 404 });
+    }
+    if (recordedByRole === 'mechanic') {
+      const assigned = await client.query(
+        `SELECT 1
+         FROM mechanic_assignments ma
+         WHERE ma.repair_job_id = $1
+           AND ma.mechanic_id = $2
+           AND ma.id = (
+             SELECT latest.id
+             FROM mechanic_assignments latest
+             WHERE latest.repair_job_id = $1
+             ORDER BY latest.assigned_at DESC, latest.id DESC
+             LIMIT 1
+           )
+         LIMIT 1`,
+        [repairJobId, recordedBy]
+      );
+      if (!assigned.rowCount) {
+        throw Object.assign(new Error('Bạn không được phân công phiếu sửa chữa này'), { statusCode: 403 });
+      }
+    }
 
     // Khóa dòng phụ tùng để đảm bảo trừ kho tuần tự
     const partResult = await client.query(
@@ -66,7 +98,7 @@ async function deductForJob({ repairJobId, sparePartId, quantity, recordedBy }) 
     if (!part) {
       throw Object.assign(new Error('Không tìm thấy phụ tùng'), { statusCode: 404 });
     }
-    if (Number(part.stock_quantity) < Number(quantity)) {
+    if (Number(part.stock_quantity) < amount) {
       throw Object.assign(new Error('Kho không đủ số lượng yêu cầu'), { statusCode: 409 });
     }
 
@@ -75,20 +107,20 @@ async function deductForJob({ repairJobId, sparePartId, quantity, recordedBy }) 
       `INSERT INTO used_parts (repair_job_id, spare_part_id, quantity, unit_price_at_time)
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [repairJobId, sparePartId, quantity, part.unit_price]
+      [repairJobId, sparePartId, amount, part.unit_price]
     );
 
     // Trừ tồn kho
     await client.query(
       'UPDATE spare_parts SET stock_quantity = stock_quantity - $2 WHERE id = $1',
-      [sparePartId, quantity]
+      [sparePartId, amount]
     );
 
     // Ghi lịch biến động kho (export)
     await client.query(
       `INSERT INTO inventory_movements (spare_part_id, recorded_by, movement_type, quantity)
        VALUES ($1, $2, 'export', $3)`,
-      [sparePartId, recordedBy, quantity]
+      [sparePartId, recordedBy, amount]
     );
 
     await client.query('COMMIT');

@@ -1,2 +1,7 @@
 node_modules
+
+# Environment variables — khong commit mat khau / JWT secret.
 .env
+.env.*
+!.env.example
+!.env.template

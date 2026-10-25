@@ -5,6 +5,10 @@ const estimateService = require('../services/estimate.service');
 
 async function getById(req, res, next) {
   try {
+    if (req.user.role === 'customer'
+      && !(await estimateService.isOwnedByUser(req.params.id, req.user.id))) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy báo giá' });
+    }
     const estimate = await estimateService.findById(req.params.id);
     if (!estimate) return res.status(404).json({ success: false, message: 'Không tìm thấy báo giá' });
     res.json({ success: true, data: estimate });
@@ -20,12 +24,12 @@ async function create(req, res, next) {
 }
 
 async function approve(req, res, next) {
-  try { res.json({ success: true, data: await estimateService.approve(req.params.id) }); }
+  try { res.json({ success: true, data: await estimateService.approve(req.params.id, req.user) }); }
   catch (err) { next(err); }
 }
 
 async function reject(req, res, next) {
-  try { res.json({ success: true, data: await estimateService.reject(req.params.id) }); }
+  try { res.json({ success: true, data: await estimateService.reject(req.params.id, req.user) }); }
   catch (err) { next(err); }
 }
 

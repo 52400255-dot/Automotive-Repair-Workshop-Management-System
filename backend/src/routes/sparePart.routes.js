@@ -17,7 +17,11 @@ router.post('/', authorize('warehouse_staff', 'admin'), controller.create);
 router.put('/:id', authorize('warehouse_staff', 'admin'), controller.update);
 
 // Thợ máy ghi nhận phụ tùng đã dùng → tự trừ kho
+<<<<<<< Updated upstream
 router.post('/:id/deduct', authorize('mechanic', 'warehouse_staff', 'admin'), controller.deduct);
+=======
+router.post('/:id/deduct', authorize('mechanic', 'warehouse_staff', 'receptionist', 'admin'), controller.deduct);
+>>>>>>> Stashed changes
 // Nhân viên kho nhập hàng
 router.post('/:id/import', authorize('warehouse_staff', 'admin'), controller.importStock);
 

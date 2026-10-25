@@ -16,11 +16,11 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// 401/403 → hết hạn phiên, quay về trang login
+// Chỉ 401 biểu thị phiên/token không hợp lệ; 403 là thiếu quyền và giữ nguyên phiên.
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401 || err.response?.status === 403) {
+    if (err.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       if (window.location.pathname !== '/login') {

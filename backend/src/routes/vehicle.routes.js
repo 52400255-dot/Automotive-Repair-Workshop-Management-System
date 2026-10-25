@@ -13,9 +13,9 @@ const repairJobController = require('../controllers/repairJob.controller');
 router.use(authenticateToken);
 router.param('id', (req, res, next) => validateIntParam('id')(req, res, next));
 
-router.get('/', controller.list);
-router.get('/:id', controller.getById);
-router.get('/:id/repair-history', validateIntParam('id'), controller.repairHistory);
+router.get('/', authorize('receptionist', 'service_manager', 'admin'), controller.list);
+router.get('/:id', authorize('receptionist', 'service_manager', 'admin'), controller.getById);
+router.get('/:id/repair-history', authorize('customer', 'receptionist', 'service_manager', 'admin'), validateIntParam('id'), controller.repairHistory);
 
 // Tiếp nhận xe (US04 alias: POST /vehicles/receive)
 router.post('/receive', authorize('receptionist'), repairJobController.create);

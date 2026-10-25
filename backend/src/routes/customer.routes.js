@@ -13,9 +13,11 @@ const { validateIntParam, validateEntity } = require('../middleware/validate');
 router.use(authenticateToken);
 router.param('id', (req, res, next) => validateIntParam('id')(req, res, next));
 
-router.get('/', controller.list);
-router.get('/:id', controller.getById);
-router.get('/:id/vehicles', controller.getVehicles);
+router.get('/me', authorize('customer'), controller.getMine);
+router.get('/me/vehicles', authorize('customer'), controller.getMyVehicles);
+router.get('/', authorize('receptionist', 'service_manager', 'admin'), controller.list);
+router.get('/:id', authorize('receptionist', 'service_manager', 'admin'), controller.getById);
+router.get('/:id/vehicles', authorize('receptionist', 'service_manager', 'admin'), controller.getVehicles);
 
 router.post('/', authorize('receptionist', 'admin'), validateEntity('customer'), controller.create);
 router.put('/:id', authorize('receptionist', 'admin'), validateEntity('customer', true), controller.update);

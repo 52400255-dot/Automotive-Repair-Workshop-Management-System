@@ -14,7 +14,7 @@ router.param('id', (req, res, next) => require('../middleware/validate').validat
 router.get('/', authorize('receptionist', 'service_manager', 'admin'), controller.list);
 router.get('/my-jobs', authorize('mechanic'), controller.myJobs);
 router.get('/mechanics', authorize('receptionist', 'service_manager', 'admin'), controller.getMechanics);
-router.get('/:id', controller.getById);
+router.get('/:id', authorize('receptionist', 'service_manager', 'admin', 'mechanic'), controller.getById);
 
 // Lễ tân tiếp nhận xe, tạo phiếu sửa
 router.post('/', authorize('receptionist'), controller.create);

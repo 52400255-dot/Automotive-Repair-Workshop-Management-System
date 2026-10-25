@@ -22,6 +22,15 @@ async function findById(id) {
   return result.rows[0] || null;
 }
 
+async function findByUserId(userId) {
+  const result = await pool.query(
+    `SELECT id, user_id, full_name, phone, email, address, created_at
+     FROM customers WHERE user_id = $1`,
+    [userId]
+  );
+  return result.rows[0] || null;
+}
+
 async function create({ userId, fullName, phone, email, address }) {
   const result = await pool.query(
     `INSERT INTO customers (
@@ -87,6 +96,7 @@ async function getVehicles(customerId) {
 module.exports = {
   findAll,
   findById,
+  findByUserId,
   create,
   update,
   remove,

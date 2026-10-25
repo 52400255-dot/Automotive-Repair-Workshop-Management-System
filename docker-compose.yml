@@ -1,17 +1,29 @@
+# docker-compose.yml
+#
+# Buoi 9 — bo hard-code: mat khau DB va JWT secret khong con viet cung trong
+# file nay. Compose tu doc file `.env` o thu muc goc de thay the ${...}.
+#
+# Cach chay:
+#   1. Copy .env.example -> .env  (o thu muc goc du an)
+#   2. Dien gia tri cua ban vao .env
+#   3. docker compose up -d
+#
+# Cú pháp ${BIEN:?thong bao} lam that bai ngay lap tuc neu bien thieu,
+# tranh viec container khoi dong bang mat khau mac dinh.
 services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: workshop_user
-      POSTGRES_PASSWORD: workshop_pass
-      POSTGRES_DB: workshop_db
+      POSTGRES_USER: ${DB_USER:?Thieu DB_USER - hay khai bao trong file .env o thu muc goc}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Thieu DB_PASSWORD - hay khai bao trong file .env o thu muc goc}
+      POSTGRES_DB: ${DB_NAME:?Thieu DB_NAME - hay khai bao trong file .env o thu muc goc}
     ports:
       - "5432:5432"
     volumes:
       # Chạy tự động toàn bộ migration khi tạo DB mới
       - ./database/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U workshop_user -d workshop_db"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -19,15 +31,17 @@ services:
   backend:
     build: ./backend
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:3000"
     environment:
       PORT: 3000
       DB_HOST: db
       DB_PORT: 5432
-      DB_USER: workshop_user
-      DB_PASSWORD: workshop_pass
-      DB_NAME: workshop_db
-      JWT_SECRET: dev_secret_change_me
+      DB_USER: ${DB_USER:?Thieu DB_USER - hay khai bao trong file .env o thu muc goc}
+      DB_PASSWORD: ${DB_PASSWORD:?Thieu DB_PASSWORD - hay khai bao trong file .env o thu muc goc}
+      DB_NAME: ${DB_NAME:?Thieu DB_NAME - hay khai bao trong file .env o thu muc goc}
+      JWT_SECRET: ${JWT_SECRET:?Thieu JWT_SECRET - hay khai bao trong file .env o thu muc goc}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      VAT_RATE: ${VAT_RATE:-0.10}
     depends_on:
       db:
         condition: service_healthy

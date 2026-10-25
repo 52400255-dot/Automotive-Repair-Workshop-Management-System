@@ -1,21 +1,27 @@
-const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
-require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
+/**
+ * config/db.js — Kết nối PostgreSQL dùng chung cho toàn backend.
+ *
+ * Sau Buổi 9: mọi giá trị kết nối (host, port, user, password, database) được
+ * đọc từ cấu hình môi trường qua config/env.js. Mã nguồn không còn chứa mật khẩu
+ * hay tên database viết cứng, và cũng không còn giá trị mặc định dự phòng.
+ */
 const { Pool } = require('pg');
+const { env } = require('./env');
 
 const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: Number(process.env.DB_PORT) || 5432,
-  user: process.env.DB_USER || 'workshop_user',
-  password: String(process.env.DB_PASSWORD || 'workshop_pass'),
-  database: process.env.DB_NAME || 'workshop_db',
+  host: env.db.host,
+  port: env.db.port,
+  user: env.db.user,
+  password: env.db.password,
+  database: env.db.database,
 });
 
 async function testConnection() {
   const client = await pool.connect();
   try {
     const result = await client.query('SELECT NOW()');
-    console.log('PostgreSQL connected at', result.rows[0].now);
+    // Chi in thong tin khong nhay cam: khong in host/user/mat khau.
+    console.log(`PostgreSQL connected at ${result.rows[0].now} (database: ${env.db.database})`);
   } finally {
     client.release();
   }
