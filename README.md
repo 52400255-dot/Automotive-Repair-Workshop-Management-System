@@ -194,7 +194,48 @@ Hệ thống web quản lý toàn bộ quy trình sửa chữa ô tô:
 
 ---
 
+## Cấu hình môi trường (`.env`) — áp dụng từ Buổi 9
+
+Toàn bộ mật khẩu database, khóa JWT và địa chỉ backend **không còn viết cứng trong mã nguồn**. Mỗi máy tự khai báo cấu hình của mình qua file `.env`.
+
+Các bước thiết lập lần đầu:
+
+```bash
+# 1. Tao file .env o thu muc goc (docker-compose dung file nay)
+copy .env.example .env
+
+# 2. Tao file .env rieng cho backend khi chay local khong qua Docker
+copy backend\.env.example backend\.env
+
+# 3. (Tuy chon) cho frontend dev server
+copy frontend\.env.example frontend\.env
+```
+
+Sau đó mở file `.env` và điền giá trị máy bạn. Những biến đang được dùng:
+
+| Biến | Dùng ở đâu | Bắt buộc? | Ghi chú |
+|---|---|---|---|
+| `PORT` | `backend/src/server.js` | Không | Mặc định `3000` |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` | `backend/src/config/db.js`, `setupDb.js` | `DB_NAME`/`DB_USER` có | Host/port mặc định `localhost:5432` |
+| `DB_PASSWORD` | như trên | **Có** | Không còn giá trị mặc định trong code |
+| `DB_SUPERUSER`, `DB_SUPERUSER_PASSWORD`, `DB_SUPERDATABASE` | `backend/src/scripts/setupDb.js` | Không | Chỉ dùng khi script phải tự tạo role/database; thiếu mật khẩu thì script sẽ hỏi trực tiếp, không đoán |
+| `JWT_SECRET` | `middleware/auth.js`, `services/auth.service.js` | **Có** | Chuỗi ngẫu nhiên ≥ 32 ký tự |
+| `JWT_EXPIRES_IN` | `services/auth.service.js` | Không | Mặc định `8h` |
+| `VAT_RATE` | `services/invoice.service.js` | Không | Mặc định `0.10`; giá trị `0` được tôn trọng |
+| `VITE_BACKEND_ORIGIN` | `frontend/vite.config.js` | Không | Mặc định `http://localhost:3000` |
+
+Quy tắc an toàn:
+
+- `.env`, `.env.local`, `.env.production`… **đã nằm trong `.gitignore`** — sẽ không bị commit.
+- Chỉ `.env.example` được commit, và nó chỉ chứa tên biến + giá trị mẫu, không chứa bí mật.
+- Backend đọc cấu hình theo thứ tự: biến môi trường của hệ thống → `backend/.env` → `.env` ở gốc. Thiếu biến bắt buộc thì ứng dụng **dừng ngay và báo lỗi rõ tên biến**, không âm thầm chạy bằng mật khẩu dự phòng.
+- Nếu mật khẩu đã từng được push lên GitHub thì phải **đổi mật khẩu đó**, vì xóa file ở commit sau không làm nó biến mất khỏi lịch sử.
+
+---
+
 ## Tài khoản demo
+
+> Các tài khoản dưới đây là **dữ liệu mẫu trong database seed**, phục vụ chấm bài tại lớp. Chúng KHÔNG phải tài khoản hệ thống thật và không được dùng ở môi trường thật.
 
 | Vai trò | Email | Mật khẩu |
 |---|---|---|

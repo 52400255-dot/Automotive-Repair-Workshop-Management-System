@@ -13,6 +13,26 @@ async function findById(id) {
   return { ...estimate.rows[0], details: details.rows };
 }
 
+async function isOwnedByUser(id, userId, db = pool) {
+  const result = await db.query(
+    `SELECT 1
+     FROM estimates e
+     JOIN repair_jobs rj ON rj.id = e.repair_job_id
+     JOIN vehicles v ON v.id = rj.vehicle_id
+     JOIN customers c ON c.id = v.customer_id
+     WHERE e.id = $1 AND c.user_id = $2
+     LIMIT 1`,
+    [id, userId]
+  );
+  return result.rowCount > 0;
+}
+
+async function requireCustomerOwnership(client, id, actor) {
+  if (actor?.role === 'customer' && !(await isOwnedByUser(id, actor.id, client))) {
+    throw Object.assign(new Error('Không tìm thấy báo giá'), { statusCode: 404 });
+  }
+}
+
 async function findByJobId(repairJobId) {
   const result = await pool.query(
     'SELECT * FROM estimates WHERE repair_job_id = $1 ORDER BY created_at DESC',
@@ -68,10 +88,11 @@ async function create({ repairJobId, items }, creatorId) {
 }
 
 /** Khách đồng ý báo giá → estimate.approved + job.approved */
-async function approve(id) {
+async function approve(id, actor) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    await requireCustomerOwnership(client, id, actor);
     const result = await client.query(
       `UPDATE estimates SET status = 'approved', approved_at = CURRENT_TIMESTAMP
        WHERE id = $1 AND status = 'sent'
@@ -97,10 +118,11 @@ async function approve(id) {
 }
 
 /** Khách từ chối báo giá → estimate.rejected + job.cancelled */
-async function reject(id) {
+async function reject(id, actor) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    await requireCustomerOwnership(client, id, actor);
     const result = await client.query(
       `UPDATE estimates SET status = 'rejected'
        WHERE id = $1 AND status = 'sent'
@@ -125,4 +147,4 @@ async function reject(id) {
   }
 }
 
-module.exports = { findById, findByJobId, create, approve, reject };
+module.exports = { findById, findByJobId, isOwnedByUser, create, approve, reject };

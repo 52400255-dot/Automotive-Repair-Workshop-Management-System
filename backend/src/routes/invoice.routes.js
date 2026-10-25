@@ -9,7 +9,7 @@ const { authorize } = require('../middleware/rbac');
 
 router.use(authenticateToken);
 
-router.get('/:id', controller.getById);
+router.get('/:id', authorize('customer', 'receptionist', 'service_manager', 'admin'), controller.getById);
 
 // Lễ tân xuất hóa đơn cho phiếu đã hoàn thành
 router.post('/', authorize('receptionist'), controller.create);

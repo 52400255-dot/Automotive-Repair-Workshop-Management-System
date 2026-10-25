@@ -1,10 +1,13 @@
 # Dependencies
 node_modules/
 
-# Environment variables
+# Environment variables — co the chua mat khau / secret, tuyet doi khong commit.
+# .env.* bao gom ca .env.local, .env.development, .env.production...
+# !.env.example giu lai file mau (chi ten bien + gia tri mau, khong co bi mat).
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!.env.template
 
 # Build
 dist/

@@ -44,6 +44,7 @@ async function deduct(req, res, next) {
       sparePartId: req.params.id,
       quantity: req.body.quantity,
       recordedBy: req.user.id,
+      recordedByRole: req.user.role,
     });
     res.status(201).json({ success: true, data: used });
   } catch (err) { next(err); }

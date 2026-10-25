@@ -171,17 +171,17 @@ async function getRepairHistory(vehicleId) {
 
 /**
  * Xe có thuộc khách hàng đang đăng nhập hay không (dùng cho Customer Portal).
- * customers.user_id chưa được liên kết trong dữ liệu mẫu nên khớp thêm theo email.
+ * Chỉ dùng khóa customers.user_id đã được liên kết; email không phải bằng chứng sở hữu.
  */
-async function isOwnedByUser(vehicleId, { userId, email }) {
+async function isOwnedByUser(vehicleId, userId) {
   const result = await pool.query(
     `SELECT 1 AS ok
      FROM vehicles v
      JOIN customers c ON c.id = v.customer_id
      WHERE v.id = $1
-       AND (c.user_id = $2 OR (c.email IS NOT NULL AND lower(c.email) = lower($3)))
+       AND c.user_id = $2
      LIMIT 1`,
-    [vehicleId, userId ?? null, email ?? '']
+    [vehicleId, userId]
   );
   return Boolean(result.rows[0]);
 }

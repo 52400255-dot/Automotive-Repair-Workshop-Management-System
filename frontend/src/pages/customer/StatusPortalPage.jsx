@@ -14,15 +14,8 @@ export default function StatusPortalPage() {
   const [histories, setHistories] = useState({});
 
   useEffect(() => {
-    // Customer đăng nhập có user.id là id trong bảng users;
-    // hồ sơ customers được API trả về theo khách hàng.
-    api.get('/customers')
-      .then((r) => {
-        // Demo đơn giản: cho phép xem theo khách hàng đầu tiên khớp email
-        const me = r.data.data.find((c) => c.email) || r.data.data[0];
-        if (!me) return;
-        return api.get(`/customers/${me.id}/vehicles`).then((vr) => setVehicles(vr.data.data));
-      })
+    api.get('/customers/me/vehicles')
+      .then((r) => setVehicles(r.data.data || []))
       .catch(() => {});
   }, []);
 

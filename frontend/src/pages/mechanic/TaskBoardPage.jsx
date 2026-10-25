@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import StatusBadge from '../../components/common/StatusBadge';
 
+<<<<<<< Updated upstream
 // Máy trạng thái hữu hạn (FSM): chỉ cho phép đi tiếp đúng 1 bước.
 const NEXT_STATUS = {
   pending: 'diagnosing',
@@ -56,6 +57,21 @@ const modalStyle = {
 const fmtDate = (v) => (v ? new Date(v).toLocaleString('vi-VN') : '');
 const stockOf = (p) => p.stock_quantity ?? p.quantity_in_stock ?? p.quantity ?? 0;
 const codeOf = (p) => p.part_code || p.sku || p.code || '';
+=======
+/**
+ * Bang tra ten tieng Viet cua trang thai phieu sua chua.
+ * (S3358 — trc day dung toan tu ba ngoi long nhau:
+ *  `status === 'completed' ? '...' : (status === 'in_repair' ? '...' : status)`)
+ */
+const STATUS_LABELS = {
+  completed: 'Hoàn thành sửa chữa',
+  in_repair: 'Đang sửa chữa',
+};
+
+function statusLabel(status) {
+  return STATUS_LABELS[status] ?? status;
+}
+>>>>>>> Stashed changes
 
 export default function TaskBoardPage() {
   const [jobs, setJobs] = useState([]);
@@ -137,6 +153,7 @@ export default function TaskBoardPage() {
     }
     setBusyJobId(job.id);
     try {
+<<<<<<< Updated upstream
       await api.put(`/repair-jobs/${job.id}/status`, { status });
       showToast(`✓ Phiếu #${job.id} đã chuyển sang [${STATUS_LABEL[status] || status}] thành công!`, 'success');
       // Cập nhật tức thì trên giao diện, sau đó đồng bộ lại từ server
@@ -145,6 +162,10 @@ export default function TaskBoardPage() {
           ? { ...j, status, ...(status === 'completed' ? { completed_at: new Date().toISOString() } : {}) }
           : j
       )));
+=======
+      await api.put(`/repair-jobs/${jobId}/status`, { status });
+      setNotice({ text: `✓ Phiếu #${jobId} đã cập nhật trạng thái: [${statusLabel(status)}] thành công!`, type: 'success' });
+>>>>>>> Stashed changes
       setReload((n) => n + 1);
       return true;
     } catch (err) {

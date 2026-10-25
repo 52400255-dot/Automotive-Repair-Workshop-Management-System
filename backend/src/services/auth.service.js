@@ -5,9 +5,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/db');
-
-const JWT_SECRET = process.env.JWT_SECRET || 'default_secret_change_me';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '8h';
+const { env } = require('../config/env');
 
 /** Tìm user theo email (dùng cho login) */
 async function findByEmail(email) {
@@ -19,13 +17,13 @@ async function findByEmail(email) {
 }
 
 /** Tạo user mới — password được hash bằng bcrypt trước khi lưu */
-async function createUser({ fullName, email, password, role }) {
+async function createUser({ fullName, email, password }) {
   const passwordHash = await bcrypt.hash(password, 10);
   const result = await pool.query(
     `INSERT INTO users (full_name, email, password_hash, role)
-     VALUES ($1, $2, $3, $4)
+     VALUES ($1, $2, $3, 'customer')
      RETURNING id, full_name, email, role, created_at`,
-    [fullName, email, passwordHash, role]
+    [fullName, email, passwordHash]
   );
   return result.rows[0];
 }
@@ -39,8 +37,8 @@ async function verifyPassword(plainPassword, passwordHash) {
 function generateToken(user) {
   return jwt.sign(
     { id: user.id, role: user.role, email: user.email },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN }
+    env.jwt.secret,
+    { expiresIn: env.jwt.expiresIn }
   );
 }
 

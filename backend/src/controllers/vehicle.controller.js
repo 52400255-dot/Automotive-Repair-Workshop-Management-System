@@ -66,7 +66,7 @@ async function remove(req, res, next) {
 
 async function repairHistory(req, res, next) {
   try {
-    const { role, id: userId, email } = req.user;
+    const { role, id: userId } = req.user;
 
     const vehicle = await vehicleService.findById(req.params.id);
     if (!vehicle) {
@@ -75,7 +75,7 @@ async function repairHistory(req, res, next) {
 
     // Khách hàng (Customer Portal) chỉ xem được xe của chính mình
     if (role === 'customer') {
-      const owns = await vehicleService.isOwnedByUser(req.params.id, { userId, email });
+      const owns = await vehicleService.isOwnedByUser(req.params.id, userId);
       if (!owns) {
         return res.status(403).json({ success: false, message: 'Bạn không có quyền xem lịch sử của xe này' });
       }

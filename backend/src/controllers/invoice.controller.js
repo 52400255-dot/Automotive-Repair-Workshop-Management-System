@@ -5,6 +5,10 @@ const invoiceService = require('../services/invoice.service');
 
 async function getById(req, res, next) {
   try {
+    if (req.user.role === 'customer'
+      && !(await invoiceService.isOwnedByUser(req.params.id, req.user.id))) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hóa đơn' });
+    }
     const invoice = await invoiceService.findById(req.params.id);
     if (!invoice) return res.status(404).json({ success: false, message: 'Không tìm thấy hóa đơn' });
     res.json({ success: true, data: invoice });

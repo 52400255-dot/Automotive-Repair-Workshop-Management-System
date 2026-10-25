@@ -7,9 +7,9 @@
  *   services/   → logic nghiệp vụ + truy vấn database
  *   middleware/ → auth JWT, RBAC, validate, error handler
  */
-const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
-require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+// Nap cau hinh moi truong (backend/.env -> repo/.env) TRUOC khi require bat cu
+// module nao doc gia tri cau hinh. Chi mot noi nap duy nhat: config/env.js.
+const { env } = require('./config/env');
 const express = require('express');
 const cors = require('cors');
 
@@ -26,7 +26,7 @@ const { errorHandler } = require('./middleware/errorHandler');
 const { testConnection } = require('./config/db');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = env.port;
 
 app.use(cors());
 app.use(express.json());

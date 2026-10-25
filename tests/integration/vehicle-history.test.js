@@ -7,36 +7,23 @@
  * Cách chạy (xem script ở package.json gốc):
  *   npm run test:integration
  *
- * Biến môi trường (có giá trị mặc định khớp docker-compose):
- *   DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME, TEST_PORT
+ * Biến môi trường (đọc từ .env ở thư mục gốc hoặc từ shell):
+ *   DB_HOST, DB_PORT, DB_USER, DB_PASSWORD (bắt buộc), DB_NAME, TEST_PORT
  */
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 
-/** pg + jsonwebtoken chỉ cài ở backend/, nên thử resolve từ đó nếu root không có. */
-function requireBackendDep(name) {
-  try {
-    return require(name);
-  } catch {
-    return require(path.join(__dirname, '..', '..', 'backend', 'node_modules', name));
-  }
-}
+const { requireDep, requireTestDbConfig, ROOT } = require('../helpers/testEnv');
 
-const { Client } = requireBackendDep('pg');
-const jwt = requireBackendDep('jsonwebtoken');
+const { Client } = requireDep('pg');
+const jwt = requireDep('jsonwebtoken');
 
-const ROOT = path.join(__dirname, '..', '..');
 const BACKEND = path.join(ROOT, 'backend');
 
-const DB = {
-  host: process.env.DB_HOST || 'localhost',
-  port: Number(process.env.DB_PORT || 5432),
-  user: process.env.DB_USER || 'workshop_user',
-  password: process.env.DB_PASSWORD || 'workshop_pass',
-  database: process.env.DB_NAME || 'workshop_db',
-};
+// Cau hinh DB doc tu .env / bien moi truong — khong con mat khau hard-code.
+const DB = requireTestDbConfig();
 
 const PORT = Number(process.env.TEST_PORT || 3111);
 const BASE = `http://localhost:${PORT}/api/v1`;

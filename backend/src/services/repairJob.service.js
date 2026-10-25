@@ -227,6 +227,26 @@ async function getDiagnosisHistory(repairJobId) {
   return result.rows;
 }
 
+async function isAssignedToMechanic(repairJobId, mechanicId) {
+  const result = await pool.query(
+    `SELECT EXISTS (
+       SELECT 1
+       FROM mechanic_assignments ma
+       WHERE ma.repair_job_id = $1
+         AND ma.mechanic_id = $2
+         AND ma.id = (
+           SELECT latest.id
+           FROM mechanic_assignments latest
+           WHERE latest.repair_job_id = $1
+           ORDER BY latest.assigned_at DESC, latest.id DESC
+           LIMIT 1
+         )
+     ) AS assigned`,
+    [repairJobId, mechanicId]
+  );
+  return result.rows[0]?.assigned === true;
+}
+
 module.exports = {
   findAll,
   findById,
@@ -237,6 +257,7 @@ module.exports = {
   getJobsForMechanic,
   getMechanics,
   getDiagnosisHistory,
+  isAssignedToMechanic,
 };
 
 

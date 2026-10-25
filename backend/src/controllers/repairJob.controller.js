@@ -12,6 +12,9 @@ async function getById(req, res, next) {
   try {
     const job = await jobService.findById(req.params.id);
     if (!job) return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu sửa chữa' });
+    if (req.user.role === 'mechanic' && !(await jobService.isAssignedToMechanic(req.params.id, req.user.id))) {
+      return res.status(403).json({ success: false, message: 'Bạn không được phân công phiếu sửa chữa này' });
+    }
     res.json({ success: true, data: job });
   } catch (err) { next(err); }
 }
@@ -63,6 +66,9 @@ async function diagnosis(req, res, next) {
 /** Xem lịch sử chẩn đoán của một phiếu sửa chữa */
 async function diagnosisHistory(req, res, next) {
   try {
+    if (req.user.role === 'mechanic' && !(await jobService.isAssignedToMechanic(req.params.id, req.user.id))) {
+      return res.status(403).json({ success: false, message: 'Bạn không được phân công phiếu sửa chữa này' });
+    }
     const data = await jobService.getDiagnosisHistory(req.params.id);
     res.json({ success: true, data });
   } catch (err) { next(err); }
