@@ -35,7 +35,7 @@ export default function VehicleHistoryPage() {
     api
       .get('/vehicles', { params: keyword ? { search: keyword } : {} })
       .then((r) => setVehicles(r.data.data))
-      .catch((err) => setNotice(err.response?.data?.message || 'Loi tai danh sach xe'));
+      .catch((err) => setNotice(err.response?.data?.message || 'Lỗi tải danh sách xe'));
   }, [keyword]);
 
   /** Chọn một xe → gọi lịch sử sửa chữa của đúng xe đó */
@@ -48,26 +48,29 @@ export default function VehicleHistoryPage() {
       const r = await api.get(`/vehicles/${vehicle.id}/repair-history`);
       setHistory(r.data.data);
     } catch (err) {
-      setNotice(err.response?.data?.message || 'Loi tai lich su sua chua');
+      setNotice(err.response?.data?.message || 'Lỗi tải lịch sử sửa chữa');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div>
+    <div className="vehicle-history-page">
       <div className="page-header">
-        <h1>Lịch sử sửa chữa xe</h1>
+        <div>
+          <p className="eyebrow">Hồ sơ phương tiện</p>
+          <h1>Lịch sử sửa chữa</h1>
+          <p>Tra cứu các lần tiếp nhận, hạng mục đã làm và chi phí theo từng xe.</p>
+        </div>
       </div>
 
       {notice && (
-        <p style={{ color: 'var(--error)', marginBottom: 12, fontWeight: 'bold' }}>{notice}</p>
+        <div className="alert alert-error" role="alert">{notice}</div>
       )}
 
       {/* B1: Tìm kiếm / chọn phương tiện */}
       <form
-        className="card"
-        style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}
+        className="card history-search"
         onSubmit={(e) => {
           e.preventDefault();
           setSearched(true);
@@ -76,9 +79,10 @@ export default function VehicleHistoryPage() {
           setNotice('');
         }}
       >
-        <div className="form-group" style={{ margin: 0, flex: 1, minWidth: 260 }}>
-          <label>Tìm xe theo biển số, hãng xe, dòng xe hoặc tên khách hàng</label>
+        <div className="form-group history-search-field">
+          <label htmlFor="vehicle-history-search">Tìm theo biển số, hãng xe hoặc khách hàng</label>
           <input
+            id="vehicle-history-search"
             className="form-control"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
@@ -86,10 +90,17 @@ export default function VehicleHistoryPage() {
             aria-label="Từ khóa tìm xe"
           />
         </div>
-        <button className="btn btn-primary" type="submit">Tìm xe</button>
+        <button className="btn btn-primary history-search-button" type="submit">Tìm xe</button>
       </form>
 
-      <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card table-card history-results-card">
+        <div className="table-card-heading">
+          <div>
+            <h2>Phương tiện</h2>
+            <p>Chọn xe để xem đầy đủ lịch sử sửa chữa.</p>
+          </div>
+          <span className="record-count">{vehicles.length} xe</span>
+        </div>
         <div className="table-wrapper">
           <table>
             <thead>
@@ -127,15 +138,19 @@ export default function VehicleHistoryPage() {
 
       {/* B2: Lịch sử sửa chữa của xe đã chọn */}
       {selected && (
-        <div className="card">
-          <strong>
-            {selected.license_plate} — {selected.brand} {selected.model} ({selected.manufacture_year || '—'})
-            &nbsp;·&nbsp; {selected.customer_name}
-          </strong>
+        <div className="card selected-vehicle-history">
+          <div className="table-card-heading">
+            <div>
+              <p className="eyebrow">Lịch sử phương tiện</p>
+              <h2>{selected.license_plate}</h2>
+              <p>{selected.brand} {selected.model} · {selected.manufacture_year || '—'} · {selected.customer_name}</p>
+            </div>
+            <span className="record-count">{history.length} phiếu</span>
+          </div>
 
-          {loading && <p style={{ marginTop: 8 }}>Đang tải lịch sử sửa chữa...</p>}
+          {loading && <p className="loading-note" role="status">Đang tải lịch sử sửa chữa...</p>}
 
-          <div className="table-wrapper" style={{ marginTop: 8 }}>
+          <div className="table-wrapper">
             <table>
               <thead>
                 <tr>
@@ -149,7 +164,7 @@ export default function VehicleHistoryPage() {
                   <tr key={j.id}>
                     <td><strong>#{j.id}</strong></td>
                     <td><StatusBadge status={j.status} /></td>
-                    <td style={{ maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <td className="job-request-cell">
                       {j.customer_request || '—'}
                     </td>
                     <td>{joinItems(j.services)}</td>

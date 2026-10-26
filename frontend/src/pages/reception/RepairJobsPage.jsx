@@ -11,6 +11,7 @@ export default function RepairJobsPage() {
   const [jobs, setJobs] = useState([]);
   const [mechanics, setMechanics] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [notice, setNotice] = useState({ text: '', type: '' });
   const [reload, setReload] = useState(0);
 
@@ -22,12 +23,10 @@ export default function RepairJobsPage() {
 
   // Tải danh sách phiếu sửa chữa
   useEffect(() => {
-    const url = statusFilter ? `/repair-jobs?status=${statusFilter}` : '/repair-jobs';
-    api.get(url)
+    api.get('/repair-jobs')
       .then((r) => setJobs(r.data.data || []))
       .catch((err) => setNotice({ text: err.response?.data?.message || 'Lỗi tải danh sách phiếu', type: 'error' }));
-  }, [reload, statusFilter]);
-
+  }, [reload]);
   // Tải danh sách thợ máy để phân công
   useEffect(() => {
     api.get('/repair-jobs/mechanics')
@@ -81,173 +80,139 @@ export default function RepairJobsPage() {
   setReload((current) => current + 1);
 }
 
+  const tabItems = [
+    { key: '', label: 'Tất cả' },
+    { key: 'pending', label: 'Chờ tiếp nhận' },
+    { key: 'diagnosing', label: 'Đang chẩn đoán' },
+    { key: 'estimated', label: 'Chờ duyệt báo giá' },
+    { key: 'approved', label: 'Đã duyệt' },
+    { key: 'in_repair', label: 'Đang sửa chữa' },
+    { key: 'completed', label: 'Hoàn thành' },
+  ];
+  const matchesTab = (job, key) => !key || job.status === key;
+  const visibleJobs = jobs.filter((job) => {
+    const query = searchQuery.trim().toLowerCase();
+    const haystack = [job.id, job.license_plate, job.brand, job.model, job.customer_name, job.customer_request, job.mechanic_name].filter(Boolean).join(' ').toLowerCase();
+    return matchesTab(job, statusFilter) && (!query || haystack.includes(query));
+  });
+  const pendingCount = jobs.filter((job) => job.status === 'pending').length;
+  const activeCount = jobs.filter((job) => ['diagnosing', 'approved', 'in_repair'].includes(job.status)).length;
+  const estimatedCount = jobs.filter((job) => job.status === 'estimated').length;
   return (
-    <div>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1>Danh sách phiếu sửa chữa & Phân công (US07)</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <select
-            className="form-control"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            style={{ width: 190 }}
-          >
-            <option value="">Tất cả trạng thái</option>
-            <option value="pending">Chờ xử lý (pending)</option>
-            <option value="diagnosing">Đang chẩn đoán (diagnosing)</option>
-            <option value="estimated">
-              Chờ duyệt báo giá (estimated)
-            </option>
-            <option value="approved">Đã duyệt (approved)</option>
-            <option value="in_repair">Đang sửa chữa (in_repair)</option>
-            <option value="completed">Đã hoàn thành (completed)</option>
-            <option value="cancelled">Đã hủy (cancelled)</option>
-          </select>
+    <div className="repair-jobs-page">
+      <div className="page-header repair-jobs-header">
+        <div>
+          <p className="eyebrow">ĐIỀU PHỐI XƯỞNG</p>
+          <h1>Phiếu sửa chữa</h1>
+          <p>Theo dõi yêu cầu, báo giá và phân công kỹ thuật viên cho từng phương tiện.</p>
         </div>
+        <span className="repair-jobs-live"><i /> Theo dõi công việc</span>
       </div>
 
       {notice.text && (
-        <div
-          style={{
-            padding: '10px 14px',
-            borderRadius: '6px',
-            marginBottom: 16,
-            fontWeight: 600,
-            backgroundColor: notice.type === 'success' ? '#f6ffed' : '#fff2f0',
-            border: `1px solid ${notice.type === 'success' ? '#b7eb8f' : '#ffccc7'}`,
-            color: notice.type === 'success' ? '#389e0d' : '#cf1322',
-          }}
-        >
+        <div className={'alert ' + (notice.type === 'success' ? 'alert-success' : 'alert-error')} role="status">
           {notice.text}
         </div>
       )}
 
-      <div className="card">
-        <div className="table-wrapper">
+      <div className="repair-overview-cards">
+        <article><span className="overview-icon overview-icon-all" aria-hidden="true">▤</span><div><small>Tổng phiếu</small><strong>{jobs.length}</strong></div><span className="overview-helper">Trong danh sách xưởng</span></article>
+        <article><span className="overview-icon overview-icon-waiting" aria-hidden="true">◷</span><div><small>Chờ phân công</small><strong>{pendingCount}</strong></div><span className="overview-helper">Cần chọn kỹ thuật viên</span></article>
+        <article><span className="overview-icon overview-icon-active" aria-hidden="true">⚙</span><div><small>Đang xử lý</small><strong>{activeCount}</strong></div><span className="overview-helper">Đang chẩn đoán hoặc sửa</span></article>
+        <article><span className="overview-icon overview-icon-estimate" aria-hidden="true">₫</span><div><small>Chờ duyệt báo giá</small><strong>{estimatedCount}</strong></div><span className="overview-helper">Đợi xác nhận từ khách</span></article>
+      </div>
+
+      <section className="card repair-queue-card">
+        <div className="repair-queue-heading">
+          <div><span className="panel-kicker">THEO DÕI TIẾN ĐỘ</span><h2>Danh sách phiếu</h2><p>Chọn trạng thái hoặc tìm theo biển số, khách hàng và yêu cầu sửa chữa.</p></div>
+          <span className="record-count">{visibleJobs.length} phiếu</span>
+        </div>
+
+        <div className="repair-queue-toolbar">
+          <div className="repair-status-tabs" role="group" aria-label="Lọc phiếu theo trạng thái">
+            {tabItems.map((tab) => {
+              const count = jobs.filter((job) => matchesTab(job, tab.key)).length;
+              return (
+                <button
+                  key={tab.key || 'all'}
+                  type="button"
+                  className={'repair-status-tab' + (statusFilter === tab.key ? ' is-active' : '')}
+                  aria-pressed={statusFilter === tab.key}
+                  onClick={() => setStatusFilter(tab.key)}
+                >
+                  {tab.label}<span>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+          <label className="repair-search">
+            <span aria-hidden="true">⌕</span>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm phiếu, biển số, khách hàng..."
+              aria-label="Tìm phiếu sửa chữa"
+            />
+          </label>
+        </div>
+
+        <div className="table-wrapper repair-queue-table">
           <table>
             <thead>
-              <tr>
-                <th>Mã</th>
-                <th>Biển số xe</th>
-                <th>Khách hàng</th>
-                <th>Mô tả / Yêu cầu</th>
-                <th>Kỹ thuật viên</th>
-                <th>Trạng thái</th>
-                <th>Hành động</th>
-              </tr>
+              <tr><th>Phiếu / Phương tiện</th><th>Khách hàng</th><th>Yêu cầu</th><th>Kỹ thuật viên</th><th>Trạng thái</th><th>Thao tác</th></tr>
             </thead>
             <tbody>
-              {jobs.map((j) => (
+              {visibleJobs.map((j) => (
                 <tr key={j.id}>
-                  <td><strong>#{j.id}</strong></td>
-                  <td>
-                    <strong>{j.license_plate}</strong>
-                    <div style={{ fontSize: '12px', color: '#888' }}>{j.brand} {j.model}</div>
-                  </td>
-                  <td>{j.customer_name}</td>
-                  <td style={{ maxWidth: 280, whiteSpace: 'normal', fontSize: '13px' }}>
-                    {j.customer_request}
-                  </td>
-                  <td>
-                    {j.mechanic_name ? (
-                      <span style={{ fontWeight: 600, color: '#1890ff' }}>{j.mechanic_name}</span>
-                    ) : (
-                      <span style={{ color: '#8c8c8c', fontStyle: 'italic' }}>Chưa phân công</span>
-                    )}
-                  </td>
+                  <td><strong>#{j.id}</strong><div className="table-secondary"><b>{j.license_plate}</b> · {j.brand} {j.model}</div></td>
+                  <td>{j.customer_name || '—'}</td>
+                  <td className="job-request-cell">{j.customer_request || 'Không có mô tả'}</td>
+                  <td>{j.mechanic_name ? <span className="assigned-mechanic">{j.mechanic_name}</span> : <span className="unassigned-mechanic">Chưa phân công</span>}</td>
                   <td><StatusBadge status={j.status} /></td>
                   <td>
-  <div className="action-buttons">
-    {['pending', 'diagnosing'].includes(j.status) &&
-      (
-        j.status === 'pending' ||
-        !j.mechanic_name
-      ? (
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => openAssign(j)}
-        >
-          Phân công thợ
-        </button>
-      ) : (
-        <button
-          type="button"
-          className="btn btn-outline"
-          onClick={() => openAssign(j)}
-        >
-          Đổi thợ
-        </button>
-      ))}
-
-    {j.status === 'diagnosing' && (
-      <button
-        type="button"
-        className="btn btn-success"
-        onClick={() => setEstimateJob(j)}
-      >
-        Lập báo giá
-      </button>
-    )}
-  </div>
-</td>
-                </tr>
-              ))}
-              {!jobs.length && (
-                <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '24px', color: '#888' }}>
-                    Không có phiếu sửa chữa nào khớp bộ lọc.
+                    <div className="action-buttons">
+                      {['pending', 'diagnosing'].includes(j.status) && (
+                        j.status === 'pending' || !j.mechanic_name
+                          ? <button type="button" className="btn btn-primary" onClick={() => openAssign(j)}>Phân công</button>
+                          : <button type="button" className="btn btn-outline" onClick={() => openAssign(j)}>Đổi thợ</button>
+                      )}
+                      {j.status === 'diagnosing' && <button type="button" className="btn btn-success" onClick={() => setEstimateJob(j)}>Lập báo giá</button>}
+                      {!['pending', 'diagnosing'].includes(j.status) && <span className="queue-action-muted">Đang theo dõi</span>}
+                    </div>
                   </td>
                 </tr>
+              ))}
+              {!visibleJobs.length && (
+                <tr><td colSpan={6} className="repair-empty-cell">{searchQuery ? 'Không tìm thấy phiếu phù hợp.' : 'Không có phiếu sửa chữa nào trong trạng thái này.'}</td></tr>
               )}
             </tbody>
           </table>
         </div>
-      </div>
-
+      </section>
       {/* Modal Phân công kỹ thuật viên (US07) */}
       {assignModal.open && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.45)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-          }}
-        >
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: '8px',
-              padding: '24px',
-              width: '480px',
-              maxWidth: '90%',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-            }}
-          >
-            <h3 style={{ marginTop: 0, marginBottom: 12, color: '#1976d2' }}>
-              Phân công kỹ thuật viên — Phiếu #{assignModal.job?.id}
-            </h3>
+        <div className="modal-backdrop">
+          <div className="modal-panel assign-modal" role="dialog" aria-modal="true" aria-labelledby="assign-title">
+            <div className="modal-header">
+              <div>
+                <p className="eyebrow">Phân công kỹ thuật</p>
+                <h2 id="assign-title">Phiếu #{assignModal.job?.id}</h2>
+              </div>
+              <button type="button" className="btn btn-outline modal-close" onClick={closeAssign} disabled={submitting} aria-label="Đóng">×</button>
+            </div>
 
-            <div style={{ background: '#f5f5f5', padding: '12px', borderRadius: '6px', marginBottom: 16, fontSize: '13px' }}>
-              <p style={{ margin: '0 0 6px 0' }}>
-                <strong>Xe:</strong> {assignModal.job?.license_plate} ({assignModal.job?.brand} {assignModal.job?.model})
-              </p>
-              <p style={{ margin: '0 0 6px 0' }}>
-                <strong>Khách hàng:</strong> {assignModal.job?.customer_name}
-              </p>
-              <p style={{ margin: 0 }}>
-                <strong>Yêu cầu:</strong> {assignModal.job?.customer_request}
-              </p>
+            <div className="assign-job-summary">
+              <p><span>Xe</span><strong>{assignModal.job?.license_plate} · {assignModal.job?.brand} {assignModal.job?.model}</strong></p>
+              <p><span>Khách hàng</span><strong>{assignModal.job?.customer_name}</strong></p>
+              <p><span>Yêu cầu</span><strong>{assignModal.job?.customer_request}</strong></p>
             </div>
 
             <form onSubmit={handleAssignSubmit}>
               <div className="form-group">
-                <label style={{ fontWeight: 600 }}>Chọn kỹ thuật viên (Mechanic) (*)</label>
+                <label htmlFor="assign-mechanic">Kỹ thuật viên</label>
                 <select
+                  id="assign-mechanic"
                   className="form-control"
                   value={selectedMechanicId}
                   onChange={(e) => setSelectedMechanicId(e.target.value)}
@@ -261,11 +226,11 @@ export default function RepairJobsPage() {
                   ))}
                 </select>
                 {mechanics.length === 0 && (
-                  <small style={{ color: '#cf1322' }}>Không có tài khoản kỹ thuật viên nào trong hệ thống!</small>
+                  <small className="form-hint form-hint-warning">Không có tài khoản kỹ thuật viên nào trong hệ thống.</small>
                 )}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+              <div className="modal-actions">
                 <button type="button" className="btn btn-outline" onClick={closeAssign} disabled={submitting}>
                   Hủy bỏ
                 </button>
@@ -277,7 +242,7 @@ export default function RepairJobsPage() {
           </div>
         </div>
       )}
-            {estimateJob && (
+      {estimateJob && (
         <EstimateModal
           job={estimateJob}
           onClose={() => setEstimateJob(null)}

@@ -1,7 +1,7 @@
 /**
  * Header — Thanh tiêu đề: tên hệ thống + thông tin user + đăng xuất.
  */
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const ROLE_LABELS = {
@@ -13,9 +13,29 @@ const ROLE_LABELS = {
   admin: 'Quản trị viên',
 };
 
+const PAGE_LABELS = {
+  '/': 'Tổng quan xưởng',
+  '/reception': 'Tiếp nhận xe',
+  '/repair-jobs': 'Phiếu sửa chữa',
+  '/vehicle-history': 'Lịch sử sửa chữa',
+  '/task-board': 'Bảng công việc',
+  '/inventory': 'Kho phụ tùng',
+  '/customers': 'Khách hàng',
+  '/vehicles': 'Quản lý xe',
+  '/portal': 'Theo dõi sửa chữa',
+};
+
 export default function Header() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const initials = (user?.fullName || user?.email || 'U')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
 
   function handleLogout() {
     logout();
@@ -23,19 +43,21 @@ export default function Header() {
   }
 
   return (
-    <header style={{
-      height: 56, background: '#fff', borderBottom: '1px solid #e0e0e0',
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '0 24px',
-    }}>
-      <strong>Hệ thống Quản lý Xưởng Sửa chữa Ô tô (Garage MS)</strong>
+    <header className="app-topbar">
+      <div className="topbar-context">
+        <span>Garage Workshop · Không gian làm việc</span>
+        <strong>{PAGE_LABELS[pathname] || 'Trung tâm dịch vụ'}</strong>
+      </div>
       {user && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span>
-            {user.fullName}
-            {' '}<em style={{ color: '#757575' }}>({ROLE_LABELS[user.role] || user.role})</em>
-          </span>
-          <button className="btn btn-outline" onClick={handleLogout}>Đăng xuất</button>
+        <div className="user-menu">
+          <div className="user-avatar" aria-hidden="true">{initials}</div>
+          <div className="user-meta">
+            <span className="user-name">{user.fullName || user.email}</span>
+            <span className="role-pill">{ROLE_LABELS[user.role] || user.role}</span>
+          </div>
+          <button className="btn btn-outline btn-logout" onClick={handleLogout}>
+            Đăng xuất
+          </button>
         </div>
       )}
     </header>

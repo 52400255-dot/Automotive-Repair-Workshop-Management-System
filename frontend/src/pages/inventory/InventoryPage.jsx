@@ -46,7 +46,7 @@ function Field({ label, error, children }) {
       <label>{label}</label>
       {children}
       {error && (
-        <div style={{ color: 'var(--error)', fontSize: 13, marginTop: 4 }}>{error}</div>
+        <div className="form-hint form-hint-error">{error}</div>
       )}
     </div>
   );
@@ -55,15 +55,15 @@ function Field({ label, error, children }) {
 function StockBadge({ part }) {
   if (isEmpty(part)) {
     return (
-      <span className="badge" style={{ background: '#ff4d4f', color: '#fff' }}>
+      <span className="badge badge-stock-empty">
         Hết hàng
       </span>
     );
   }
   if (isLow(part)) {
     return (
-      <span className="badge" style={{ background: '#ffe58f', color: '#874d00' }}>
-        ⚠️ Sắp hết
+      <span className="badge badge-stock-low">
+        Sắp hết
       </span>
     );
   }
@@ -289,7 +289,7 @@ function ImportModal({ part, onClose, onSaved }) {
           </button>
         </div>
 
-        <p style={{ marginBottom: 16 }}>
+        <p className="import-part-summary">
           <strong>{part.part_name}</strong> ({part.part_code}) — tồn hiện tại:{' '}
           <strong>
             {formatQty(part.stock_quantity)} {part.unit}
@@ -383,52 +383,66 @@ function UsageForm({ parts, onDone }) {
   }
 
   return (
-    <div className="card" style={{ marginBottom: 20, padding: 15 }}>
-      <h3>Ghi nhận phụ tùng sử dụng cho phiếu sửa chữa</h3>
+    <section className="card usage-form-card">
+      <div className="table-card-heading">
+        <div>
+          <h2>Ghi nhận phụ tùng sử dụng</h2>
+          <p>Trừ số lượng vật tư đã dùng khỏi kho theo phiếu sửa chữa.</p>
+        </div>
+      </div>
       {error && (
-        <div className="alert alert-error" style={{ marginTop: 10 }}>
+        <div className="alert alert-error">
           {error}
         </div>
       )}
       <form
         onSubmit={handleSubmit}
         noValidate
-        style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}
+        className="usage-form-grid"
       >
-        <input
-          className="form-control"
-          style={{ width: 200 }}
-          inputMode="numeric"
-          placeholder="Mã phiếu sửa chữa (VD: 1)"
-          value={form.repairJobId}
-          onChange={(e) => setForm({ ...form, repairJobId: e.target.value })}
-        />
-        <select
-          className="form-control"
-          style={{ width: 280 }}
-          value={form.partId}
-          onChange={(e) => setForm({ ...form, partId: e.target.value })}
-        >
-          <option value="">-- Chọn phụ tùng --</option>
-          {parts.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.part_name} (Tồn: {formatQty(p.stock_quantity)} {p.unit})
-            </option>
-          ))}
-        </select>
-        <input
-          className="form-control"
-          style={{ width: 100 }}
-          inputMode="numeric"
-          placeholder="Số lượng"
-          value={form.quantity}
-          onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-        />
-        <button type="submit" className="btn btn-primary" disabled={submitting}>
+        <div className="form-group">
+          <label htmlFor="usage-repair-job">Mã phiếu sửa chữa</label>
+          <input
+            id="usage-repair-job"
+            className="form-control"
+            inputMode="numeric"
+            placeholder="Ví dụ: 1"
+            value={form.repairJobId}
+            onChange={(e) => setForm({ ...form, repairJobId: e.target.value })}
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="usage-part">Phụ tùng</label>
+          <select
+            id="usage-part"
+            className="form-control"
+            value={form.partId}
+            onChange={(e) => setForm({ ...form, partId: e.target.value })}
+          >
+            <option value="">-- Chọn phụ tùng --</option>
+            {parts.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.part_name} (Tồn: {formatQty(p.stock_quantity)} {p.unit})
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="form-group">
+          <label htmlFor="usage-quantity">Số lượng</label>
+          <input
+            id="usage-quantity"
+            className="form-control"
+            inputMode="numeric"
+            placeholder="1"
+            value={form.quantity}
+            onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+          />
+        </div>
+        <button type="submit" className="btn btn-primary usage-submit" disabled={submitting}>
           {submitting ? 'Đang ghi nhận...' : 'Ghi nhận sử dụng'}
         </button>
       </form>
-    </div>
+    </section>
   );
 }
 
@@ -490,18 +504,22 @@ export default function InventoryPage() {
   const columnCount = canManage ? 8 : 7;
 
   return (
-    <div style={{ padding: '20px' }}>
+    <div className="inventory-page">
       <div className="page-header">
-        <h1>Kho phụ tùng & Vật tư</h1>
+        <div>
+          <p className="eyebrow">Quản lý tồn kho</p>
+          <h1>Kho phụ tùng</h1>
+          <p>Theo dõi lượng vật tư, nhập hàng và xử lý cảnh báo sắp hết.</p>
+        </div>
         {canManage && (
           <button className="btn btn-primary" onClick={() => setModal({ type: 'create' })}>
-            + Thêm phụ tùng
+            Thêm phụ tùng
           </button>
         )}
       </div>
 
       {notice && (
-        <div className={`alert ${notice.type === 'success' ? 'alert-success' : 'alert-error'}`}>
+        <div className={`alert ${notice.type === 'success' ? 'alert-success' : 'alert-error'}`} role="status">
           {notice.text}
         </div>
       )}
@@ -509,57 +527,57 @@ export default function InventoryPage() {
 
       {/* Cảnh báo tồn kho thấp (US12) */}
       {allLow.length > 0 && (
-        <div
-          style={{
-            marginBottom: 20,
-            padding: 15,
-            background: '#fff2f0',
-            border: '1px solid #ff4d4f',
-            borderRadius: 8,
-          }}
-        >
-          <h3 style={{ margin: '0 0 10px 0', color: '#cf1322' }}>
-            ⚠️ Cảnh báo phụ tùng sắp hết kho ({allLow.length})
-          </h3>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <section className="stock-alert-panel" aria-live="polite">
+          <div className="stock-alert-heading">
+            <span className="stock-alert-icon" aria-hidden="true">!</span>
+            <div>
+              <h2>Phụ tùng cần bổ sung</h2>
+              <p>{allLow.length} mặt hàng đang ở mức tồn thấp.</p>
+            </div>
+          </div>
+          <div className="stock-alert-list">
             {allLow.map((p) => (
               <span
                 key={p.id}
-                className="badge"
-                style={{
-                  padding: '6px 12px',
-                  background: isEmpty(p) ? '#ff4d4f' : '#ffe58f',
-                  color: isEmpty(p) ? '#fff' : '#874d00',
-                }}
+                className={`badge ${isEmpty(p) ? 'badge-stock-empty' : 'badge-stock-low'}`}
               >
-                {p.part_name} (Còn: {formatQty(p.stock_quantity)} {p.unit})
+                <strong>{p.part_name}</strong> · Còn {formatQty(p.stock_quantity)} {p.unit}
               </span>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {/* Ghi nhận sử dụng phụ tùng (US11) */}
       {canManage && <UsageForm parts={parts} onDone={handleDone} />}
 
       {/* Tab lọc (US12) */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+      <div className="filter-tabs" role="group" aria-label="Lọc phụ tùng">
         <button
-          className={`btn ${tab === 'all' ? 'btn-primary' : 'btn-outline'}`}
+          type="button"
+          className={`filter-tab${tab === 'all' ? ' is-active' : ''}`}
           onClick={() => setTab('all')}
         >
-          Tất cả phụ tùng ({parts.length})
+          Tất cả phụ tùng<span>{parts.length}</span>
         </button>
         <button
-          className={`btn ${tab === 'low' ? 'btn-primary' : 'btn-outline'}`}
+          type="button"
+          className={`filter-tab${tab === 'low' ? ' is-active' : ''}`}
           onClick={() => setTab('low')}
         >
-          ⚠️ Sắp hết hàng ({allLow.length})
+          Sắp hết hàng<span>{allLow.length}</span>
         </button>
       </div>
 
       {/* Bảng danh sách */}
-      <div className="card">
+      <div className="card table-card">
+        <div className="table-card-heading">
+          <div>
+            <h2>Danh mục phụ tùng</h2>
+            <p>Đơn giá và ngưỡng tồn được quản lý theo từng mặt hàng.</p>
+          </div>
+          <span className="record-count">{visibleParts.length} mặt hàng</span>
+        </div>
         <div className="table-wrapper">
           <table>
             <thead>
@@ -576,9 +594,9 @@ export default function InventoryPage() {
             </thead>
             <tbody>
               {visibleParts.map((p) => (
-                <tr key={p.id} style={isLow(p) ? { background: '#fff8e6' } : undefined}>
-                  <td>{p.part_code}</td>
-                  <td>{p.part_name}</td>
+                <tr key={p.id} className={isLow(p) ? 'stock-row-low' : undefined}>
+                  <td><span className="part-code">{p.part_code}</span></td>
+                  <td><strong>{p.part_name}</strong></td>
                   <td>{p.unit}</td>
                   <td>
                     <strong>{formatQty(p.stock_quantity)}</strong>

@@ -375,9 +375,13 @@ export default function VehiclesPage() {
   });
 
   return (
-    <div>
+    <div className="vehicles-page">
       <div className="page-header">
-        <h1>Quản lý xe</h1>
+        <div>
+          <p className="eyebrow">Danh mục phương tiện</p>
+          <h1>Quản lý xe</h1>
+          <p>Quản lý biển số, thông tin xe và chủ sở hữu trong hệ thống.</p>
+        </div>
 
         <button
           type="button"
@@ -414,7 +418,7 @@ export default function VehiclesPage() {
         </div>
       )}
 
-      <div className="card">
+      <div className="card table-card">
         <div className="page-toolbar">
           <input
             type="search"
@@ -424,7 +428,7 @@ export default function VehiclesPage() {
             onChange={(event) => setSearchTerm(event.target.value)}
           />
 
-          <span>
+          <span className="record-count">
             Hiển thị {filteredVehicles.length}/{vehicles.length} xe
           </span>
         </div>

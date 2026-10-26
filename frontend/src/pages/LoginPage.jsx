@@ -42,68 +42,120 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{ padding: '24px', maxWidth: '440px', margin: '60px auto', background: '#fff', border: '1px solid #e0e0e0', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-      <h2 style={{ margin: '0 0 8px 0', color: '#1976d2' }}>Garage Workshop MS</h2>
-      <p style={{ color: '#666', marginTop: 0, marginBottom: '20px' }}>Đăng nhập hệ thống quản lý sửa chữa ô tô</p>
-
-      {error && (
-        <div style={{ padding: '10px 12px', background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: '4px', color: '#cf1322', marginBottom: '16px', fontSize: '14px' }}>
-          {error}
-        </div>
-      )}
-
-      <form onSubmit={handleLogin}>
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '14px' }}>Email</label>
-          <input
-            type="email"
-            className="form-control"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ width: '100%', padding: '8px 12px', boxSizing: 'border-box' }}
-            required
-          />
+    <main className="login-screen">
+      <section className="login-showcase" aria-label="Giới thiệu hệ thống">
+        <div className="login-brand">
+          <div className="brand-mark" aria-hidden="true">G</div>
+          <div>
+            <strong>Garage Workshop</strong>
+            <span>AUTOMOTIVE REPAIR MANAGEMENT</span>
+          </div>
         </div>
 
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ display: 'block', fontWeight: 600, marginBottom: '6px', fontSize: '14px' }}>Mật khẩu</label>
-          <input
-            type="password"
-            className="form-control"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ width: '100%', padding: '8px 12px', boxSizing: 'border-box' }}
-            required
-          />
+        <div className="login-story">
+          <p className="eyebrow">Một quy trình, rõ từng bước</p>
+          <h1>Vận hành xưởng sửa chữa liền mạch hơn.</h1>
+          <p>
+            Từ lúc xe vào xưởng đến khi hoàn tất sửa chữa, thông tin được tập trung
+            theo từng khách hàng, phương tiện và phiếu công việc.
+          </p>
+
+          <ol className="workflow-list">
+            <li>
+              <span className="workflow-number">01</span>
+              <span className="workflow-copy">
+                <strong>Tiếp nhận xe</strong>
+                <small>Lưu thông tin xe và yêu cầu sửa chữa</small>
+              </span>
+            </li>
+            <li>
+              <span className="workflow-number">02</span>
+              <span className="workflow-copy">
+                <strong>Chẩn đoán & báo giá</strong>
+                <small>Phân công thợ và thống nhất hạng mục</small>
+              </span>
+            </li>
+            <li>
+              <span className="workflow-number">03</span>
+              <span className="workflow-copy">
+                <strong>Sửa chữa & bàn giao</strong>
+                <small>Theo dõi phụ tùng, tiến độ và thanh toán</small>
+              </span>
+            </li>
+          </ol>
         </div>
 
-        <button
-          type="submit"
-          className="btn btn-primary"
-          disabled={loading}
-          style={{ width: '100%', padding: '10px', fontSize: '15px' }}
-        >
-          {loading ? 'Đang xác thực...' : 'Đăng nhập'}
-        </button>
-      </form>
+        <p className="login-footnote">Công cụ nội bộ dành cho quy trình gara ô tô.</p>
+      </section>
 
-      <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px dashed #d9d9d9' }}>
-        <p style={{ fontSize: '12px', color: '#888', margin: '0 0 8px 0', fontWeight: 600 }}>Tài khoản demo nhanh (mật khẩu: 123456):</p>
-        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => setQuickAccount('dung.receptionist@workshop.vn')} style={{ fontSize: '12px', padding: '4px 8px', cursor: 'pointer', background: '#f5f5f5', border: '1px solid #d9d9d9', borderRadius: '4px' }}>
-            Lễ tân (Dung)
-          </button>
-          <button type="button" onClick={() => setQuickAccount('hieu.mechanic@workshop.vn')} style={{ fontSize: '12px', padding: '4px 8px', cursor: 'pointer', background: '#f5f5f5', border: '1px solid #d9d9d9', borderRadius: '4px' }}>
-            Thợ máy (Hiếu)
-          </button>
-          <button type="button" onClick={() => setQuickAccount('minh.manager@workshop.vn')} style={{ fontSize: '12px', padding: '4px 8px', cursor: 'pointer', background: '#f5f5f5', border: '1px solid #d9d9d9', borderRadius: '4px' }}>
-            Quản lý (Minh)
-          </button>
-          <button type="button" onClick={() => setQuickAccount('admin@workshop.vn')} style={{ fontSize: '12px', padding: '4px 8px', cursor: 'pointer', background: '#f5f5f5', border: '1px solid #d9d9d9', borderRadius: '4px' }}>
-            Admin
-          </button>
+      <section className="login-panel-wrap" aria-label="Đăng nhập">
+        <div className="login-panel">
+          <div className="login-mobile-brand">
+            <div className="brand-mark" aria-hidden="true">G</div>
+            <strong>Garage Workshop</strong>
+          </div>
+
+          <p className="eyebrow">Khu vực thành viên</p>
+          <h2>Chào mừng trở lại</h2>
+          <p className="login-intro">Đăng nhập để tiếp tục công việc tại xưởng.</p>
+
+          {error && <div className="alert alert-error" role="alert">{error}</div>}
+
+          <form className="login-form" onSubmit={handleLogin}>
+            <div className="form-group">
+              <label htmlFor="login-email">Email</label>
+              <input
+                id="login-email"
+                type="email"
+                className="form-control"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="login-password">Mật khẩu</label>
+              <input
+                id="login-password"
+                type="password"
+                className="form-control"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            <button type="submit" className="btn btn-primary btn-login" disabled={loading}>
+              {loading ? 'Đang xác thực...' : 'Đăng nhập'}
+            </button>
+          </form>
+
+          <div className="demo-access">
+            <div className="demo-access-heading">
+              <span>Tài khoản demo nhanh</span>
+              <span className="demo-tag">Dùng thử</span>
+            </div>
+            <div className="demo-accounts">
+              <button type="button" className="demo-account" onClick={() => setQuickAccount('dung.receptionist@workshop.vn')}>
+                Lễ tân · Dung
+              </button>
+              <button type="button" className="demo-account" onClick={() => setQuickAccount('hieu.mechanic@workshop.vn')}>
+                Thợ máy · Hiếu
+              </button>
+              <button type="button" className="demo-account" onClick={() => setQuickAccount('minh.manager@workshop.vn')}>
+                Quản lý · Minh
+              </button>
+              <button type="button" className="demo-account" onClick={() => setQuickAccount('admin@workshop.vn')}>
+                Quản trị viên
+              </button>
+            </div>
+            <p className="demo-password">Mật khẩu demo: <strong>123456</strong></p>
+          </div>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

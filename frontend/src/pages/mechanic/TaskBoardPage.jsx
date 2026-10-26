@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import StatusBadge from '../../components/common/StatusBadge';
+import { useAuth } from '../../context/AuthContext';
 
 // Máy trạng thái hữu hạn (FSM): chỉ cho phép đi tiếp đúng 1 bước.
 const NEXT_STATUS = {
@@ -39,29 +40,12 @@ const TABS = [
   { key: 'completed', label: 'Đã hoàn thành' },
 ];
 
-const overlayStyle = {
-  position: 'fixed',
-  inset: 0,
-  backgroundColor: 'rgba(0, 0, 0, 0.45)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  zIndex: 1000,
-};
-const modalStyle = {
-  background: '#fff',
-  borderRadius: '8px',
-  padding: '24px',
-  width: '540px',
-  maxWidth: '90%',
-  boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-};
-
 const fmtDate = (v) => (v ? new Date(v).toLocaleString('vi-VN') : '');
 const stockOf = (p) => p.stock_quantity ?? p.quantity_in_stock ?? p.quantity ?? 0;
 const codeOf = (p) => p.part_code || p.sku || p.code || '';
 
 export default function TaskBoardPage() {
+  const { user } = useAuth();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('all');
@@ -251,209 +235,243 @@ export default function TaskBoardPage() {
     }
   }
 
+  const mechanicName = (user?.fullName || user?.email || '').trim().split(/\s+/).slice(-1)[0];
+  const workTotal = jobs.length || 1;
+  const completedPercent = Math.round((counts.completed || 0) / workTotal * 100);
+  const usedPartRows = jobs.flatMap((job) => partsOfJob(job).map((part) => ({ ...part, jobId: job.id }))).slice(0, 4);
+  const partsRecorded = jobs.reduce((sum, job) => sum + partsOfJob(job).reduce((partSum, part) => partSum + Number(part.quantity || 0), 0), 0);
   return (
-    <div>
-      <div className="page-header">
-        <h1>Bảng công việc của kỹ thuật viên</h1>
+    <div className="task-board-page">
+      <div className="page-header task-board-heading">
+        <div>
+          <p className="eyebrow">BẢNG CÔNG VIỆC KỸ THUẬT</p>
+          <h1>{mechanicName ? 'Chào ' + mechanicName + ', sẵn sàng bắt đầu?' : 'Công việc của tôi'}</h1>
+          <p>Các phiếu được giao, tiến độ sửa chữa và phụ tùng đã ghi nhận.</p>
+        </div>
+        <span className="task-board-live"><i /> Đang hoạt động</span>
       </div>
 
-      {/* Toast thông báo */}
+      <div className="task-board-metrics">
+        <div className="task-metric-card"><span>Phiếu được giao</span><strong>{counts.all}</strong><small>Tổng số phiếu của bạn</small></div>
+        <div className="task-metric-card"><span>Đang sửa chữa</span><strong>{counts.in_repair || 0}</strong><small>Đang xử lý tại xưởng</small></div>
+        <div className="task-metric-card"><span>Đã hoàn thành</span><strong>{counts.completed || 0}</strong><small>Đã hoàn tất sửa chữa</small></div>
+      </div>
       {toast.text && (
         <div
+          className={`toast-notice ${toast.type === 'success' ? 'toast-success' : 'toast-error'}`}
           role="status"
-          style={{
-            position: 'fixed',
-            top: 20,
-            right: 20,
-            zIndex: 2000,
-            maxWidth: 380,
-            padding: '12px 16px',
-            borderRadius: 6,
-            fontWeight: 600,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-            backgroundColor: toast.type === 'success' ? '#f6ffed' : '#fff2f0',
-            border: `1px solid ${toast.type === 'success' ? '#b7eb8f' : '#ffccc7'}`,
-            color: toast.type === 'success' ? '#389e0d' : '#cf1322',
-            cursor: 'pointer',
-          }}
           onClick={() => setToast({ text: '', type: '' })}
         >
           {toast.text}
         </div>
       )}
 
-      {/* Tab bộ lọc: lọc tại client nên phản hồi tức thì */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+      <div className="filter-tabs" role="group" aria-label="Lọc công việc theo trạng thái">
         {TABS.map((t) => (
           <button
             key={t.key}
             type="button"
-            className={tab === t.key ? 'btn btn-primary' : 'btn btn-outline'}
+            className={`filter-tab${tab === t.key ? ' is-active' : ''}`}
             onClick={() => setTab(t.key)}
-            style={{ fontSize: 13 }}
           >
-            {t.label} ({counts[t.key] || 0})
+            {t.label}<span>{counts[t.key] || 0}</span>
           </button>
         ))}
       </div>
 
-      <div style={{ display: 'grid', gap: 16 }}>
+      <div className="task-board-content">
+        <div className="task-list">
         {visibleJobs.map((j) => {
           const used = partsOfJob(j);
           const busy = busyJobId === j.id;
           return (
-            <div
-              key={j.id}
-              className="card"
-              style={{ borderLeft: `4px solid ${j.status === 'completed' ? '#52c41a' : '#1976d2'}` }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-                <div>
-                  <span style={{ fontSize: 18, fontWeight: 700, color: j.status === 'completed' ? '#389e0d' : '#1976d2' }}>
-                    Phiếu #{j.id}
-                  </span>
-                  <span style={{ marginLeft: 12, fontSize: 16, fontWeight: 600 }}>
-                    {j.license_plate} ({j.brand} {j.model})
-                  </span>
-                  <div style={{ fontSize: 13, color: '#666', marginTop: 2 }}>
-                    Khách hàng: <strong>{j.customer_name}</strong> {j.customer_phone ? `— ${j.customer_phone}` : ''}
-                  </div>
+            <article key={j.id} className={`card job-card job-card-${j.status}`}>
+              <div className="job-card-header">
+                <div className="job-card-identity">
+                  <span className="job-number">Phiếu #{j.id}</span>
+                  <h2>{j.license_plate} <span>{j.brand} {j.model}</span></h2>
+                  <p>Khách hàng: <strong>{j.customer_name}</strong>{j.customer_phone ? ` · ${j.customer_phone}` : ''}</p>
                 </div>
                 <StatusBadge status={j.status} />
               </div>
 
-              <div style={{ background: '#fafafa', padding: '10px 14px', borderRadius: 6, marginBottom: 12, fontSize: 14 }}>
-                <strong>Yêu cầu từ khách:</strong> {j.customer_request || 'Không có mô tả'}
-              </div>
+              <section className="job-detail-block customer-request-block">
+                <span className="job-detail-label">Yêu cầu từ khách</span>
+                <p>{j.customer_request || 'Không có mô tả'}</p>
+              </section>
 
               {j.diagnosis_result && (
-                <div style={{ background: '#e6f7ff', border: '1px solid #91d5ff', padding: '10px 14px', borderRadius: 6, marginBottom: 12, fontSize: 13 }}>
-                  <div style={{ fontWeight: 600, color: '#0050b3', marginBottom: 4 }}>
-                    Chẩn đoán hiện tại{j.diagnosed_at ? ` (lúc ${fmtDate(j.diagnosed_at)})` : ''}:
-                  </div>
-                  <div><strong>Kết quả:</strong> {j.diagnosis_result}</div>
-                  {j.repair_suggestion && <div><strong>Đề xuất:</strong> {j.repair_suggestion}</div>}
-                </div>
+                <section className="job-detail-block diagnosis-block">
+                  <span className="job-detail-label">
+                    Chẩn đoán hiện tại{j.diagnosed_at ? ` · ${fmtDate(j.diagnosed_at)}` : ''}
+                  </span>
+                  <p><strong>Kết quả:</strong> {j.diagnosis_result}</p>
+                  {j.repair_suggestion && <p><strong>Đề xuất:</strong> {j.repair_suggestion}</p>}
+                </section>
               )}
 
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div className="job-actions">
                 <button
+                  type="button"
                   className="btn btn-outline"
                   disabled={j.status !== 'diagnosing' || submitting}
                   onClick={() => openDiagnosis(j)}
-                  style={{ fontSize: 13 }}
                 >
-                  {j.diagnosis_result ? 'Cập nhật lại chẩn đoán' : 'Ghi kết quả chẩn đoán'}
+                  {j.diagnosis_result ? 'Cập nhật chẩn đoán' : 'Ghi kết quả chẩn đoán'}
                 </button>
 
                 {j.status === 'approved' && (
                   <button
+                    type="button"
                     className="btn btn-primary"
                     disabled={busy}
                     onClick={() => changeStatus(j, 'in_repair')}
-                    style={{ fontSize: 14, fontWeight: 700, backgroundColor: '#1677ff', color: '#fff' }}
                   >
-                    {busy ? 'Đang xử lý...' : '🛠️ Bắt đầu sửa chữa'}
+                    {busy ? 'Đang xử lý...' : 'Bắt đầu sửa chữa'}
                   </button>
                 )}
 
                 {j.status === 'in_repair' && (
                   <>
-                    <button
-                      className="btn btn-outline"
-                      onClick={() => openPartModal(j)}
-                      style={{ fontSize: 13 }}
-                    >
-                      🔩 Lấy phụ tùng sử dụng
+                    <button type="button" className="btn btn-outline" onClick={() => openPartModal(j)}>
+                      Lấy phụ tùng sử dụng
                     </button>
                     <button
+                      type="button"
                       className="btn btn-success"
                       disabled={busy}
                       onClick={() => setCompleteModal({ open: true, job: j })}
-                      style={{ fontSize: 14, fontWeight: 700, backgroundColor: '#52c41a', color: '#fff' }}
                     >
-                      ✓ Hoàn thành sửa chữa
+                      Hoàn thành sửa chữa
                     </button>
                   </>
                 )}
 
                 {j.status === 'completed' && (
-                  <div style={{ color: '#389e0d', background: '#f6ffed', border: '1px solid #b7eb8f', padding: '6px 12px', borderRadius: 4, fontSize: 13, fontWeight: 600 }}>
-                    ✓ Đã hoàn thành sửa chữa lúc {j.completed_at ? fmtDate(j.completed_at) : 'vừa xong'}
+                  <div className="job-completed-note">
+                    Đã hoàn thành sửa chữa lúc {j.completed_at ? fmtDate(j.completed_at) : 'vừa xong'}
                   </div>
                 )}
               </div>
 
-              {/* Phụ tùng đã dùng */}
               {(used.length > 0 || j.status === 'in_repair') && (
-                <div style={{ marginTop: 12, background: '#fffbe6', border: '1px solid #ffe58f', padding: '10px 14px', borderRadius: 6, fontSize: 13 }}>
-                  <div style={{ fontWeight: 600, marginBottom: 4 }}>Phụ tùng đã sử dụng:</div>
+                <section className="job-detail-block used-parts-block">
+                  <span className="job-detail-label">Phụ tùng đã sử dụng</span>
                   {used.length === 0 ? (
-                    <div style={{ color: '#888' }}>Chưa ghi nhận phụ tùng nào.</div>
+                    <p className="empty-note">Chưa ghi nhận phụ tùng nào.</p>
                   ) : (
-                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    <ul>
                       {used.map((p, i) => (
                         <li key={`${p.name}-${i}`}>
-                          {p.name} {p.code ? `(${p.code})` : ''} — <strong>x{p.quantity}</strong>
+                          {p.name} {p.code ? `(${p.code})` : ''} <strong>×{p.quantity}</strong>
                         </li>
                       ))}
                     </ul>
                   )}
-                </div>
+                </section>
               )}
-            </div>
+            </article>
           );
         })}
 
         {!visibleJobs.length && (
-          <div className="card" style={{ textAlign: 'center', padding: 36, color: '#888' }}>
-            <h3>{loading ? 'Đang tải công việc...' : 'Hiện tại không có công việc sửa chữa nào khớp bộ lọc.'}</h3>
-            {!loading && <p style={{ margin: 0 }}>Vui lòng kiểm tra lại sau hoặc liên hệ Quản lý dịch vụ.</p>}
+          <div className="card empty-state" role="status">
+            <span className="empty-state-mark" aria-hidden="true">✓</span>
+            <h2>{loading ? 'Đang tải công việc...' : 'Không có công việc trong mục này'}</h2>
+            {!loading && <p>Các phiếu được giao sẽ xuất hiện tại đây.</p>}
           </div>
         )}
       </div>
 
-      {/* Modal chẩn đoán (US06) */}
-      {diagnosisModal.open && (
-        <div style={overlayStyle}>
-          <div style={modalStyle}>
-            <h3 style={{ marginTop: 0, marginBottom: 12, color: '#1976d2' }}>
-              Ghi nhận chẩn đoán kỹ thuật — Phiếu #{diagnosisModal.job?.id}
-            </h3>
+        <aside className="task-board-aside">
+          <section className="card task-progress-panel">
+            <div className="task-aside-heading">
+              <div><span className="panel-kicker">TỔNG QUAN</span><h2>Tiến độ công việc</h2></div>
+              <span className="task-progress-mark" aria-hidden="true">↗</span>
+            </div>
+            <div className="task-progress-score"><strong>{completedPercent}%</strong><span>{counts.completed || 0} trên {counts.all} phiếu hoàn tất</span></div>
+            <div className="task-progress-track" role="progressbar" aria-label="Tỷ lệ phiếu đã hoàn thành" aria-valuemin="0" aria-valuemax="100" aria-valuenow={completedPercent}>
+              <span style={{ width: completedPercent + '%' }} />
+            </div>
+            <div className="task-status-breakdown">
+              {[
+                { key: 'pending', label: 'Chờ phân công', color: 'task-dot-waiting' },
+                { key: 'diagnosing', label: 'Đang chẩn đoán', color: 'task-dot-diagnosis' },
+                { key: 'in_repair', label: 'Đang sửa chữa', color: 'task-dot-repair' },
+                { key: 'completed', label: 'Đã hoàn thành', color: 'task-dot-complete' },
+              ].map((item) => (
+                <div key={item.key}><span><i className={item.color} />{item.label}</span><strong>{counts[item.key] || 0}</strong></div>
+              ))}
+            </div>
+          </section>
 
-            <div style={{ background: '#f5f5f5', padding: '10px 12px', borderRadius: 6, marginBottom: 16, fontSize: 13 }}>
-              <strong>Phương tiện:</strong> {diagnosisModal.job?.license_plate} ({diagnosisModal.job?.brand} {diagnosisModal.job?.model})<br />
-              <strong>Yêu cầu của khách:</strong> {diagnosisModal.job?.customer_request}
+          <section className="card task-parts-panel">
+            <div className="task-aside-heading">
+              <div><span className="panel-kicker">VẬT TƯ XƯỞNG</span><h2>Phụ tùng đã dùng</h2></div>
+              <span className="task-parts-total">{partsRecorded}</span>
+            </div>
+            {usedPartRows.length ? (
+              <ul className="task-used-parts-list">
+                {usedPartRows.map((part, index) => (
+                  <li key={part.jobId + '-' + part.name + '-' + index}>
+                    <span className="task-part-icon" aria-hidden="true">⌁</span>
+                    <span><strong>{part.name}</strong><small>Phiếu #{part.jobId}</small></span>
+                    <b>×{part.quantity}</b>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="task-parts-empty">Các phụ tùng được ghi nhận trong lúc sửa sẽ hiển thị tại đây.</p>
+            )}
+            <p className="task-stock-note">Tổng số lượng phụ tùng đã ghi nhận trên các phiếu.</p>
+          </section>
+        </aside>
+      </div>
+
+      {diagnosisModal.open && (
+        <div className="modal-backdrop">
+          <div className="modal-panel task-modal" role="dialog" aria-modal="true" aria-labelledby="diagnosis-title">
+            <div className="modal-header">
+              <div>
+                <p className="eyebrow">Cập nhật kỹ thuật</p>
+                <h2 id="diagnosis-title">Chẩn đoán · Phiếu #{diagnosisModal.job?.id}</h2>
+              </div>
+              <button type="button" className="btn btn-outline modal-close" onClick={closeDiagnosis} disabled={submitting} aria-label="Đóng">×</button>
+            </div>
+
+            <div className="modal-context">
+              <p><span>Phương tiện</span><strong>{diagnosisModal.job?.license_plate} · {diagnosisModal.job?.brand} {diagnosisModal.job?.model}</strong></p>
+              <p><span>Yêu cầu</span><strong>{diagnosisModal.job?.customer_request}</strong></p>
             </div>
 
             <form onSubmit={handleDiagnosisSubmit}>
               <div className="form-group">
-                <label style={{ fontWeight: 600 }}>Kết quả kiểm tra / chẩn đoán (*)</label>
+                <label htmlFor="diagnosis-result">Kết quả kiểm tra / chẩn đoán <em>(bắt buộc)</em></label>
                 <textarea
+                  id="diagnosis-result"
                   className="form-control"
                   rows={3}
                   value={diagnosisResult}
                   onChange={(e) => setDiagnosisResult(e.target.value)}
-                  placeholder="Ví dụ: Má phanh trước bên phụ mòn dưới 2mm, đĩa phanh xước nhẹ, dầu phanh biến chất..."
+                  placeholder="Ghi lại các dấu hiệu, kết quả kiểm tra và nguyên nhân xác định được..."
                   required
                 />
               </div>
 
               <div className="form-group">
-                <label style={{ fontWeight: 600 }}>Đề xuất phương án sửa chữa & phụ tùng thay thế</label>
+                <label htmlFor="repair-suggestion">Đề xuất sửa chữa và phụ tùng thay thế</label>
                 <textarea
+                  id="repair-suggestion"
                   className="form-control"
                   rows={3}
                   value={repairSuggestion}
                   onChange={(e) => setRepairSuggestion(e.target.value)}
-                  placeholder="Ví dụ: Thay bộ má phanh trước (BRAKE-PAD-001), láng đĩa phanh, thay dầu phanh DOT4..."
+                  placeholder="Nêu phương án sửa chữa và phụ tùng cần dùng nếu có..."
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-                <button type="button" className="btn btn-outline" onClick={closeDiagnosis} disabled={submitting}>
-                  Đóng
-                </button>
+              <div className="modal-actions">
+                <button type="button" className="btn btn-outline" onClick={closeDiagnosis} disabled={submitting}>Hủy</button>
                 <button type="submit" className="btn btn-primary" disabled={submitting || !diagnosisResult.trim()}>
                   {submitting ? 'Đang lưu...' : 'Lưu chẩn đoán'}
                 </button>
@@ -463,59 +481,63 @@ export default function TaskBoardPage() {
         </div>
       )}
 
-      {/* Modal xác nhận hoàn thành sửa chữa (US09) */}
       {completeModal.open && completeModal.job && (
-        <div style={overlayStyle}>
-          <div style={modalStyle}>
-            <h3 style={{ marginTop: 0, marginBottom: 12, color: '#389e0d' }}>
-              Xác nhận hoàn thành sửa chữa — Phiếu #{completeModal.job.id}
-            </h3>
+        <div className="modal-backdrop">
+          <div className="modal-panel task-modal" role="dialog" aria-modal="true" aria-labelledby="complete-title">
+            <div className="modal-header">
+              <div>
+                <p className="eyebrow">Xác nhận bàn giao</p>
+                <h2 id="complete-title">Hoàn thành · Phiếu #{completeModal.job.id}</h2>
+              </div>
+              <button
+                type="button"
+                className="btn btn-outline modal-close"
+                onClick={() => setCompleteModal({ open: false, job: null })}
+                disabled={busyJobId === completeModal.job.id}
+                aria-label="Đóng"
+              >×</button>
+            </div>
 
-            <div style={{ background: '#f5f5f5', padding: '10px 12px', borderRadius: 6, marginBottom: 12, fontSize: 13 }}>
-              <strong>Phương tiện:</strong> {completeModal.job.license_plate} ({completeModal.job.brand} {completeModal.job.model})<br />
-              <strong>Khách hàng:</strong> {completeModal.job.customer_name}<br />
-              <strong>Yêu cầu:</strong> {completeModal.job.customer_request || 'Không có mô tả'}
+            <div className="modal-context">
+              <p><span>Phương tiện</span><strong>{completeModal.job.license_plate} · {completeModal.job.brand} {completeModal.job.model}</strong></p>
+              <p><span>Khách hàng</span><strong>{completeModal.job.customer_name}</strong></p>
+              <p><span>Yêu cầu</span><strong>{completeModal.job.customer_request || 'Không có mô tả'}</strong></p>
             </div>
 
             {completeModal.job.diagnosis_result && (
-              <div style={{ fontSize: 13, marginBottom: 12 }}>
-                <strong>Chẩn đoán:</strong> {completeModal.job.diagnosis_result}
-                {completeModal.job.repair_suggestion && (<><br /><strong>Hạng mục đề xuất:</strong> {completeModal.job.repair_suggestion}</>)}
+              <div className="completion-detail">
+                <p><strong>Chẩn đoán:</strong> {completeModal.job.diagnosis_result}</p>
+                {completeModal.job.repair_suggestion && <p><strong>Hạng mục đề xuất:</strong> {completeModal.job.repair_suggestion}</p>}
               </div>
             )}
 
-            <div style={{ fontSize: 13, marginBottom: 12 }}>
-              <strong>Phụ tùng đã sử dụng:</strong>
+            <div className="completion-detail">
+              <strong>Phụ tùng đã sử dụng</strong>
               {partsOfJob(completeModal.job).length === 0 ? (
-                <span style={{ color: '#888' }}> Chưa ghi nhận phụ tùng nào.</span>
+                <p className="empty-note">Chưa ghi nhận phụ tùng nào.</p>
               ) : (
-                <ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+                <ul>
                   {partsOfJob(completeModal.job).map((p, i) => (
-                    <li key={`${p.name}-${i}`}>{p.name} — x{p.quantity}</li>
+                    <li key={`${p.name}-${i}`}>{p.name} · ×{p.quantity}</li>
                   ))}
                 </ul>
               )}
             </div>
 
-            <p style={{ fontSize: 13, color: '#cf1322', margin: '0 0 8px' }}>
-              Sau khi xác nhận, phiếu sẽ chuyển sang “Hoàn thành” và không thể thao tác tiếp.
-            </p>
+            <p className="confirmation-note">Sau khi xác nhận, phiếu sẽ chuyển sang “Hoàn thành” và không thể thao tác tiếp.</p>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
+            <div className="modal-actions">
               <button
                 type="button"
                 className="btn btn-outline"
                 onClick={() => setCompleteModal({ open: false, job: null })}
                 disabled={busyJobId === completeModal.job.id}
-              >
-                Hủy
-              </button>
+              >Hủy</button>
               <button
                 type="button"
                 className="btn btn-success"
                 onClick={confirmComplete}
                 disabled={busyJobId === completeModal.job.id}
-                style={{ backgroundColor: '#52c41a', color: '#fff' }}
               >
                 {busyJobId === completeModal.job.id ? 'Đang xử lý...' : 'Xác nhận hoàn thành'}
               </button>
@@ -524,18 +546,22 @@ export default function TaskBoardPage() {
         </div>
       )}
 
-      {/* Modal lấy phụ tùng (US11) */}
       {partModal.open && (
-        <div style={overlayStyle}>
-          <div style={modalStyle}>
-            <h3 style={{ marginTop: 0, marginBottom: 12, color: '#1976d2' }}>
-              Lấy phụ tùng sử dụng — Phiếu #{partModal.job?.id}
-            </h3>
+        <div className="modal-backdrop">
+          <div className="modal-panel task-modal" role="dialog" aria-modal="true" aria-labelledby="part-title">
+            <div className="modal-header">
+              <div>
+                <p className="eyebrow">Vật tư xưởng</p>
+                <h2 id="part-title">Lấy phụ tùng · Phiếu #{partModal.job?.id}</h2>
+              </div>
+              <button type="button" className="btn btn-outline modal-close" onClick={closePartModal} disabled={submitting} aria-label="Đóng">×</button>
+            </div>
 
             <form onSubmit={handleDeductPartSubmit}>
               <div className="form-group">
-                <label style={{ fontWeight: 600 }}>Phụ tùng trong kho (*)</label>
+                <label htmlFor="repair-part">Phụ tùng trong kho <em>(bắt buộc)</em></label>
                 <select
+                  id="repair-part"
                   className="form-control"
                   value={selectedPartId}
                   onChange={(e) => setSelectedPartId(e.target.value)}
@@ -551,8 +577,9 @@ export default function TaskBoardPage() {
               </div>
 
               <div className="form-group">
-                <label style={{ fontWeight: 600 }}>Số lượng (*)</label>
+                <label htmlFor="part-quantity">Số lượng <em>(bắt buộc)</em></label>
                 <input
+                  id="part-quantity"
                   type="number"
                   className="form-control"
                   min={1}
@@ -562,16 +589,12 @@ export default function TaskBoardPage() {
                   required
                 />
                 {overStock && (
-                  <div style={{ color: '#cf1322', fontSize: 12, marginTop: 4 }}>
-                    Số lượng vượt quá tồn kho ({stockOf(selectedPart)}).
-                  </div>
+                  <div className="form-hint form-hint-warning">Số lượng vượt quá tồn kho ({stockOf(selectedPart)}).</div>
                 )}
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
-                <button type="button" className="btn btn-outline" onClick={closePartModal} disabled={submitting}>
-                  Đóng
-                </button>
+              <div className="modal-actions">
+                <button type="button" className="btn btn-outline" onClick={closePartModal} disabled={submitting}>Hủy</button>
                 <button
                   type="submit"
                   className="btn btn-primary"

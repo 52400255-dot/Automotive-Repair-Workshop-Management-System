@@ -12,9 +12,16 @@ export default function ProgressPage() {
     };
 
     return  (
-        <div style={{ padding: '20px' }}>
-            <h2>[US09] Cập nhật Tiến độ Sửa chữa</h2>
-            <table border="1" cellPadding="0" style={{width : '100%', textAlign: 'left'}}>
+        <div className="legacy-page">
+            <div className="page-header">
+                <div>
+                    <p className="eyebrow">Xưởng sửa chữa</p>
+                    <h1>Cập nhật tiến độ</h1>
+                    <p>Theo dõi trạng thái hiện tại của từng phiếu.</p>
+                </div>
+            </div>
+            <div className="card table-wrapper">
+            <table>
                 <thead>
                     <tr style={{ backgroundColor: '#f2f2f2' }}> 
                         <th>Mã Phiếu</th>
@@ -32,7 +39,7 @@ export default function ProgressPage() {
                             <td>{job.customer}</td>
                             <td><strong>{job.status}</strong></td>
                             <td>
-                                <select 
+                                <select className="form-control"
                                     value={job.status}
                                     onChange={(e) => handleStatusChange(job.id, e.target.value)}
                                 >
@@ -46,6 +53,7 @@ export default function ProgressPage() {
                     ))}
                 </tbody>
             </table>
+            </div>
         </div>
     );
 }
