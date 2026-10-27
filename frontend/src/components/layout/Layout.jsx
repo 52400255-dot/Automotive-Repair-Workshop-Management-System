@@ -1,18 +1,23 @@
 /**
  * Layout — Khung trang chung: Sidebar trái + Header trên + nội dung giữa.
  */
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 
 export default function Layout() {
+  const { pathname } = useLocation();
+  const isCoreScreen = ['/', '/reception', '/repair-jobs', '/task-board'].includes(pathname);
+
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div className="app-shell">
       <Sidebar />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div className="app-main-column">
         <Header />
-        <main style={{ flex: 1, padding: 24, overflow: 'auto' }}>
-          <Outlet />
+        <main className={'app-main' + (isCoreScreen ? ' app-main-core' : '')}>
+          <div className="page-container">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

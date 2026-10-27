@@ -7,31 +7,41 @@ export default function EstimatePage() {
   const total = Number(laborFee) + Number(partsFee);
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>[US13] Tạo Báo giá Sửa chữa</h2>
-      <div style={{ border: '1px solid #ccc', padding: '20px', borderRadius: '8px', maxWidth: '500px' }}>
-        <div style={{ marginBottom: '15px' }}>
-          <label>Chi phí tiền công (VNĐ): </label>
-          <input 
+    <div className="legacy-page">
+      <div className="page-header">
+        <div>
+          <p className="eyebrow">Báo giá sửa chữa</p>
+          <h1>Dự toán chi phí</h1>
+          <p>Tổng hợp tiền công và phụ tùng dự kiến.</p>
+        </div>
+      </div>
+      <div className="legacy-panel">
+        <div className="form-group">
+          <label htmlFor="estimate-labor">Chi phí tiền công (VNĐ)</label>
+          <input
+            id="estimate-labor"
             type="number" 
             value={laborFee} 
             onChange={(e) => setLaborFee(e.target.value)}
-            style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+            className="form-control"
           />
         </div>
-        <div style={{ marginBottom: '15px' }}>
-          <label>Chi phí phụ tùng / vật tư (VNĐ): </label>
-          <input 
+        <div className="form-group">
+          <label htmlFor="estimate-parts">Chi phí phụ tùng / vật tư (VNĐ)</label>
+          <input
+            id="estimate-parts"
             type="number" 
             value={partsFee} 
             onChange={(e) => setPartsFee(e.target.value)}
-            style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+            className="form-control"
           />
         </div>
-        <hr />
-        <h3>Tổng chi phí dự toán: <span style={{ color: '#2f54eb' }}>{total.toLocaleString()} VNĐ</span></h3>
-        <button style={{ backgroundColor: '#52c41a', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-          Xuất Báo Giá
+        <div className="estimate-total">
+          <span>Tổng chi phí dự toán</span>
+          <strong>{total.toLocaleString()} VNĐ</strong>
+        </div>
+        <button className="btn btn-success" type="button">
+          Xuất báo giá
         </button>
       </div>
     </div>

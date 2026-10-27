@@ -15,9 +15,16 @@ export default function RoleManagementPage() {
   };
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>[US17] Quản lý Vai trò & Phân quyền (RBAC)</h2>
-      <table border="1" cellPadding="10" cellSpacing="0" style={{ width: '100%', textAlign: 'left' }}>
+    <div className="legacy-page">
+      <div className="page-header">
+        <div>
+          <p className="eyebrow">Quản trị truy cập</p>
+          <h1>Vai trò & phân quyền</h1>
+          <p>Kiểm soát phạm vi thao tác của từng nhóm người dùng.</p>
+        </div>
+      </div>
+      <div className="card table-wrapper">
+      <table>
         <thead>
           <tr style={{ backgroundColor: '#f2f2f2' }}>
             <th>ID</th>
@@ -35,7 +42,7 @@ export default function RoleManagementPage() {
               <td>{user.email}</td>
               <td><strong>{user.role}</strong></td>
               <td>
-                <select 
+                  <select className="form-control"
                   value={user.role} 
                   onChange={(e) => handleRoleChange(user.id, e.target.value)}
                 >
@@ -48,6 +55,7 @@ export default function RoleManagementPage() {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

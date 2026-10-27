@@ -210,9 +210,13 @@ export default function CustomersPage() {
   });
 
   return (
-    <div>
+    <div className="customers-page">
       <div className="page-header">
-        <h1>Quản lý khách hàng</h1>
+        <div>
+          <p className="eyebrow">Hồ sơ khách hàng</p>
+          <h1>Khách hàng</h1>
+          <p>Lưu và cập nhật thông tin liên hệ của khách hàng tại gara.</p>
+        </div>
       </div>
 
       {notice && (
@@ -240,7 +244,7 @@ export default function CustomersPage() {
       )}
 
       <form
-        className="card"
+        className="card customer-create-form"
         style={{
           marginBottom: 16,
           display: 'flex',
@@ -330,7 +334,7 @@ export default function CustomersPage() {
         </button>
       </form>
 
-      <div className="card">
+      <div className="card table-card">
         <div className="page-toolbar">
           <input
             className="form-control"
@@ -340,7 +344,7 @@ export default function CustomersPage() {
             onChange={(event) => setSearchTerm(event.target.value)}
           />
 
-          <span>
+          <span className="record-count">
             Hiển thị {filteredCustomers.length}/{customers.length} khách hàng
           </span>
         </div>

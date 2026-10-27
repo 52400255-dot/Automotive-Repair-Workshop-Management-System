@@ -5,14 +5,20 @@ const lowStockParts = [
 
 export default function StockWarningPage() {
     return (
-        <div style={{ padding: '20px'}}>
-            <h2>[US12] Cảnh báo Phụ tùng Tồn kho thấp</h2>
-            <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+        <div className="legacy-page">
+            <div className="page-header">
+                <div>
+                    <p className="eyebrow">Kho phụ tùng</p>
+                    <h1>Cảnh báo tồn thấp</h1>
+                    <p>Những phụ tùng cần được kiểm tra và bổ sung.</p>
+                </div>
+            </div>
+            <div className="warning-grid">
                 {lowStockParts.map(item => (
-                    <div key={item.id} style={{ border: '2px solid #f4f4f4', backgroundColor: '#fff2f0', padding: '15px', borderRadius: '8px', minWidth: '220px'}}>
-                        <span style={{ backgroundColor: 'ff4d4f', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '12px'}}>CẢNH BÁO</span>
-                        <h4 style={{ margin:'10px 0 5px' }}>{item.name}</h4>
-                        <p style={{ margin: 0}}>Tồn kho hiện tại: <strong style={{ color: '#cf1322'}}>{item.stock}</strong> (Ngưỡng: {item.threshold})</p>
+                    <div key={item.id} className="warning-card">
+                        <span className="warning-tag">Cần bổ sung</span>
+                        <h3>{item.name}</h3>
+                        <p>Tồn kho hiện tại: <strong>{item.stock}</strong> · Ngưỡng tối thiểu: {item.threshold}</p>
                     
                     </div>
                 ))}
