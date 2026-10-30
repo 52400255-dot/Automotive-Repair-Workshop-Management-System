@@ -17,6 +17,7 @@ import VehiclesPage from '../pages/reception/VehiclesPage';
 import TaskBoardPage from '../pages/mechanic/TaskBoardPage';
 import InventoryPage from '../pages/inventory/InventoryPage';
 import StatusPortalPage from '../pages/customer/StatusPortalPage';
+import RoleManagementPage from '../pages/admin/RoleManagementPage';
 
 /** Sau khi đăng nhập, customer vào Portal, các role khác vào Dashboard */
 function Home() {
@@ -60,6 +61,9 @@ export default function AppRouter() {
           <Route path="/inventory" element={
             <ProtectedRoute roles={['warehouse_staff', 'receptionist', 'admin']}><InventoryPage /></ProtectedRoute>
           } />
+          <Route path="/admin/roles" element={
+          <ProtectedRoute roles={['admin']}><RoleManagementPage /></ProtectedRoute>
+          }/>
           <Route path="/portal" element={
             <ProtectedRoute roles={['customer']}><StatusPortalPage /></ProtectedRoute>
           } />
