@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { to: '/inventory', label: 'Kho phụ tùng', icon: 'inventory', roles: ['warehouse_staff', 'receptionist', 'admin'] },
   { to: '/customers', label: 'Khách hàng', icon: 'customers', roles: ['receptionist', 'admin'] },
   { to: '/vehicles', label: 'Quản lý xe', icon: 'vehicles', roles: ['receptionist', 'admin'] },
+  {to: '/admin/roles',label: 'Vai trò & phân quyền',icon: 'customers',roles: ['admin'],},
   { to: '/portal', label: 'Theo dõi sửa chữa', icon: 'portal', roles: ['customer'] },
 ];
 
