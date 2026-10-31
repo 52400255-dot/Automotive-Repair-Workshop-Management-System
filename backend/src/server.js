@@ -22,6 +22,7 @@ const sparePartRoutes = require('./routes/sparePart.routes');
 const estimateRoutes = require('./routes/estimate.routes');
 const invoiceRoutes = require('./routes/invoice.routes');
 const serviceRoutes = require('./routes/service.routes');
+const userRoutes = require('./routes/user.routes');
 const { errorHandler } = require('./middleware/errorHandler');
 const { testConnection } = require('./config/db');
 
@@ -42,6 +43,7 @@ app.use('/api/v1/spare-parts', sparePartRoutes);
 app.use('/api/v1/estimates', estimateRoutes);
 app.use('/api/v1/invoices', invoiceRoutes);
 app.use('/api/v1/services', serviceRoutes);
+app.use('/api/v1/users', userRoutes);
 
 // ---- 404 cho route không tồn tại ----
 app.use((req, res) => {
