@@ -18,6 +18,7 @@ tags:
   - name: SpareParts
   - name: Estimates
   - name: Invoices
+  - name: Users
 
 paths:
   /auth/login:
@@ -755,6 +756,205 @@ paths:
                         description: { type: string }
                         standard_price: { type: number }
 
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Đăng ký tài khoản công khai (luôn tạo role customer)
+      description: >
+        Endpoint công khai, không cần token. Chỉ đọc fullName, email, password; mọi trường role
+        trong body đều bị bỏ qua và tài khoản mới luôn có role customer. Muốn đổi role phải dùng
+        PATCH /users/{id}/role (chỉ admin).
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fullName, email, password]
+              properties:
+                fullName: { type: string }
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+      responses:
+        '201':
+          description: Tài khoản mới, role luôn là customer, không có password_hash
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, const: true }
+                  data: { $ref: '#/components/schemas/UserPublic' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /users:
+    get:
+      tags: [Users]
+      summary: Danh sách người dùng (chỉ admin, US17)
+      operationId: listUsers
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Danh sách người dùng sắp theo id tăng dần. Không bao giờ có password_hash.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, const: true }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/UserPublic' }
+              example:
+                success: true
+                data:
+                  - id: '9'
+                    full_name: Le Thi Ngoc
+                    email: ngoc.warehouse@workshop.vn
+                    role: warehouse_staff
+                    created_at: '2026-10-21T11:19:40.983Z'
+                  - id: '10'
+                    full_name: Admin He Thong
+                    email: admin@workshop.vn
+                    role: admin
+                    created_at: '2026-10-21T11:19:40.983Z'
+        '401':
+          description: Thiếu token xác thực, hoặc token sai định dạng
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                thieuToken:
+                  summary: Không gửi header Authorization
+                  value:
+                    success: false
+                    message: Không tìm thấy token xác thực (Access token required)
+                tokenKhongHopLe:
+                  summary: Token sai định dạng
+                  value:
+                    success: false
+                    message: Token không hợp lệ (Invalid or malformed token)
+        '403':
+          description: Người gọi không phải admin
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example:
+                success: false
+                message: "Bạn không có quyền truy cập (Role 'warehouse_staff' is not authorized). Cần một trong: admin"
+
+  /users/{id}/role:
+    patch:
+      tags: [Users]
+      summary: Đổi vai trò của người dùng (chỉ admin, US17)
+      description: >
+        Người không phải admin luôn nhận 403, kể cả khi id hoặc body sai (quyền được kiểm tra trước).
+        Đổi sang đúng role hiện tại vẫn trả 200 cùng bản ghi người dùng.
+        Vai trò được đọc từ JWT khi gọi API: token cấp trước khi đổi role vẫn mang role cũ,
+        người bị đổi role phải đăng nhập lại để nhận token mới.
+        Đăng ký công khai (POST /auth/register) không nhận role; đây là cách duy nhất để đổi role.
+      operationId: updateUserRole
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: { $ref: '#/components/schemas/UserRole' }
+            example:
+              role: mechanic
+      responses:
+        '200':
+          description: Người dùng sau khi đổi role. Không có password_hash.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, const: true }
+                  data: { $ref: '#/components/schemas/UserPublic' }
+              example:
+                success: true
+                data:
+                  id: '11'
+                  full_name: Test Role US17
+                  email: us17.101853@example.com
+                  role: mechanic
+                  created_at: '2026-10-31T03:19:14.507Z'
+        '400':
+          description: id không phải số nguyên dương, thiếu hoặc sai kiểu role, hoặc role không thuộc danh sách cho phép
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                idKhongHopLe:
+                  summary: id không phải số nguyên dương
+                  value:
+                    success: false
+                    message: "Tham số 'id' không hợp lệ (phải là số nguyên dương)"
+                    errors:
+                      - field: id
+                        message: "'id' phải là số nguyên dương, nhận được 'abc'"
+                thieuRole:
+                  summary: Thiếu role (hoặc không gửi body)
+                  value:
+                    success: false
+                    message: Dữ liệu không hợp lệ (Validation failed)
+                    errors:
+                      - field: role
+                        message: "'role' là bắt buộc (required)"
+                saiKieuRole:
+                  summary: role không phải chuỗi
+                  value:
+                    success: false
+                    message: Dữ liệu không hợp lệ (Validation failed)
+                    errors:
+                      - field: role
+                        message: "'role' phải có kiểu 'string', nhận được 'number'"
+                roleKhongHopLe:
+                  summary: role ngoài danh sách cho phép (không có trường errors)
+                  value:
+                    success: false
+                    message: "Vai trò không hợp lệ. Chỉ chấp nhận: customer, receptionist, service_manager, mechanic, warehouse_staff, admin"
+        '401':
+          description: Thiếu token xác thực, hoặc token sai định dạng
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                thieuToken:
+                  summary: Không gửi header Authorization
+                  value:
+                    success: false
+                    message: Không tìm thấy token xác thực (Access token required)
+                tokenKhongHopLe:
+                  summary: Token sai định dạng
+                  value:
+                    success: false
+                    message: Token không hợp lệ (Invalid or malformed token)
+        '403':
+          description: Người gọi không phải admin
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example:
+                success: false
+                message: "Bạn không có quyền truy cập (Role 'warehouse_staff' is not authorized). Cần một trong: admin"
+        '404':
+          description: Không tìm thấy người dùng với id này
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example:
+                success: false
+                message: Không tìm thấy người dùng
+
 components:
   securitySchemes:
     bearerAuth:
@@ -845,6 +1045,14 @@ components:
       properties:
         success: { type: boolean, const: false }
         message: { type: string }
+        errors:
+          type: array
+          description: Chi tiết lỗi từng trường. Chỉ có ở lỗi kiểm tra dữ liệu đầu vào, có thể vắng mặt.
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              message: { type: string }
 
     User:
       type: object
@@ -993,3 +1201,23 @@ components:
               description: { type: string }
               quantity: { type: number }
               unitPrice: { type: number }
+
+    UserRole:
+      type: string
+      description: Phải khớp ràng buộc CHECK của cột users.role trong database.
+      enum: [customer, receptionist, service_manager, mechanic, warehouse_staff, admin]
+
+    UserPublic:
+      type: object
+      description: Thông tin công khai của người dùng. Không bao giờ chứa password_hash.
+      required: [id, full_name, email, role, created_at]
+      properties:
+        id:
+          type: string
+          pattern: '^[0-9]+$'
+          description: BIGINT của PostgreSQL, API trả về dạng chuỗi (ví dụ "11").
+          examples: ['11']
+        full_name: { type: string }
+        email: { type: string, format: email }
+        role: { $ref: '#/components/schemas/UserRole' }
+        created_at: { type: string, format: date-time }
