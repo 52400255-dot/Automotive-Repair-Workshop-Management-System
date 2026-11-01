@@ -54,12 +54,12 @@ Tuần này tập trung vào coverage, kiểm thử API và E2E trình duyệt c
 | **US18 — Coverage** | Thêm lệnh `npm run test:coverage` cho business logic đã chọn, đặt ngưỡng tối thiểu 60% cho line, statement, function và branch; thêm unit test RBAC cho phép role, từ chối role (403), và chưa xác thực (401). Local: **105/105 unit test đạt; line coverage 99,39%, branch 96,09%, function 100%**. |
 | **US19 — API integration** | Thêm fixture tạo/dọn user thử nghiệm và integration test API quản lý role: admin xem/đổi role; role thường và anonymous bị chặn; kiểm tra role sai, ID không tồn tại, không lộ `password_hash`, quyền JWT cũ, admin cuối cùng và request đồng thời. Local: **18/18 integration test đạt** trên PostgreSQL riêng tên có hậu tố `_test`. |
 | **US19 — Browser E2E** | Thêm Playwright config và hai luồng E2E cho admin đổi role, tải lại xác nhận dữ liệu đã lưu, và người dùng thường không truy cập được màn quản lý role. Chỉnh nút đăng nhập không dịch chuyển khi hover và chờ hiệu ứng kết thúc trước thao tác; local: **2/2 E2E đạt**. |
-| **CI** | Thêm job coverage và job role-management E2E vào GitHub Actions; lưu Playwright report làm artifact. Frontend lint và production build đều đạt khi kiểm tra local. |
+| **CI** | Thêm job coverage và job role-management E2E vào GitHub Actions; lưu Playwright report làm artifact. Frontend lint và production build đạt local; GitHub Actions run #52 cho PR #44 đã xanh ở cả 5 job. |
 | **Đăng ký khách hàng / duyệt báo giá** | Đăng ký tài khoản khách nối hồ sơ có sẵn bằng email và số điện thoại; tạo user + liên kết hồ sơ trong transaction; thêm danh sách báo giá của đúng khách và thao tác đồng ý/từ chối trên portal. Duyệt/từ chối được giới hạn cho khách sở hữu báo giá. |
 | **Xóa phiếu sửa chữa** | Thêm endpoint và thao tác xóa phiếu cho lễ tân/quản lý/admin. Xóa trong transaction kèm dữ liệu con; chặn phiếu đã được duyệt, đã bắt đầu sửa/hoàn tất, đã ghi nhận phụ tùng hoặc có hóa đơn để bảo toàn lịch sử. Xóa khách cần dọn phiếu đủ điều kiện rồi xóa xe trước. |
 | **Docker / giao diện** | Đồng bộ role DB với database hiện có, chuyển dữ liệu sang named volume bền vững, thêm phản hồi `GET /`, cấp quyền xem kho cho quản lý dịch vụ nhưng vẫn giữ quyền nhập kho riêng, và sửa ô tìm kiếm phiếu bị tràn. Docker Compose khởi động lại thành công, health check PostgreSQL healthy. |
 
-**Còn thiếu để đóng US18/US19:** xác nhận GitHub Actions xanh sau khi push; có ít nhất một reviewer approve và merge PR theo quy trình nhóm. DoD trên GitHub yêu cầu review và merge nên hai issue vẫn mở cho đến khi các bước đó hoàn tất.
+**Còn thiếu để đóng US17/US18/US19:** có ít nhất một reviewer approve và merge PR theo quy trình nhóm. GitHub Actions run #52 đã xanh; DoD trên GitHub yêu cầu review và merge nên các issue vẫn mở đến khi PR được merge.
 
 ---
 
@@ -75,8 +75,8 @@ Tuần này tập trung vào coverage, kiểm thử API và E2E trình duyệt c
 | US07 | Phân công thợ máy | ✅ | `PUT /api/v1/repair-jobs/:id/assign` — `/repair-jobs` |
 | US08 | Thợ xem công việc được phân công | ✅ | `GET /api/v1/repair-jobs/my-jobs` — `/task-board` |
 | US16 | Đăng nhập (JWT) | ✅ | `POST /api/v1/auth/login` — `/login` |
-| US18 | Unit testing tự động + coverage gate | 🔄 | 105 test cases — `tests/unit/`; coverage business logic tối thiểu 60% (local đạt, chờ CI/review/merge) |
-| US19 | API integration & browser E2E | 🔄 | 18 integration tests và 2 Playwright E2E đạt local; CI/review/merge đang chờ |
+| US18 | Unit testing tự động + coverage gate | 🔄 | 105 test cases — `tests/unit/`; coverage business logic tối thiểu 60% (local và CI đạt, chờ review/merge) |
+| US19 | API integration & browser E2E | 🔄 | 18 integration tests và 2 Playwright E2E đạt local; CI đạt, chờ review/merge |
 
 ---
 
