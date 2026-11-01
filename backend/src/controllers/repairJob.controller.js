@@ -38,6 +38,14 @@ async function updateStatus(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function remove(req, res, next) {
+  try {
+    const deleted = await jobService.remove(req.params.id);
+    if (!deleted) return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu sửa chữa' });
+    res.json({ success: true, message: 'Đã xóa phiếu sửa chữa', data: deleted });
+  } catch (err) { next(err); }
+}
+
 /** Service Manager phân công thợ */
 async function assign(req, res, next) {
   try {
@@ -84,4 +92,4 @@ async function getMechanics(req, res, next) {
   catch (err) { next(err); }
 }
 
-module.exports = { list, getById, create, updateStatus, assign, diagnosis, myJobs, getMechanics, diagnosisHistory };
+module.exports = { list, getById, create, updateStatus, remove, assign, diagnosis, myJobs, getMechanics, diagnosisHistory };

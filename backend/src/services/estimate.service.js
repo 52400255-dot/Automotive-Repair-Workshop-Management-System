@@ -46,6 +46,38 @@ async function findByJobId(repairJobId) {
   return result.rows[0] || null;
 }
 
+/** Danh sách báo giá chỉ thuộc về hồ sơ khách hàng đang đăng nhập. */
+async function findForCustomer(userId) {
+  const result = await pool.query(
+    `SELECT e.id, e.repair_job_id, e.status, e.total_amount, e.created_at, e.approved_at,
+            rj.status AS repair_job_status, rj.customer_request,
+            v.license_plate, v.brand, v.model
+     FROM estimates e
+     JOIN repair_jobs rj ON rj.id = e.repair_job_id
+     JOIN vehicles v ON v.id = rj.vehicle_id
+     JOIN customers c ON c.id = v.customer_id
+     WHERE c.user_id = $1
+     ORDER BY e.created_at DESC, e.id DESC`,
+    [userId]
+  );
+  if (!result.rows.length) return [];
+
+  const details = await pool.query(
+    `SELECT estimate_id, id, item_type, description, quantity, unit_price
+     FROM estimate_details
+     WHERE estimate_id = ANY($1::bigint[])
+     ORDER BY estimate_id, id`,
+    [result.rows.map((row) => row.id)]
+  );
+  const byEstimate = new Map();
+  for (const item of details.rows) {
+    const key = String(item.estimate_id);
+    if (!byEstimate.has(key)) byEstimate.set(key, []);
+    byEstimate.get(key).push(item);
+  }
+  return result.rows.map((row) => ({ ...row, details: byEstimate.get(String(row.id)) || [] }));
+}
+
 /**
  * Tạo báo giá kèm chi tiết (labor + parts).
  * Tổng tiền tự tính từ danh sách details.
@@ -196,4 +228,4 @@ async function reject(id, actor) {
   }
 }
 
-module.exports = { findById, findByJobId, isOwnedByUser, create, approve, reject };
+module.exports = { findById, findByJobId, findForCustomer, isOwnedByUser, create, approve, reject };

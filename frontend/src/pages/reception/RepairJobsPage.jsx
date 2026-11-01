@@ -20,6 +20,8 @@ export default function RepairJobsPage() {
   const [selectedMechanicId, setSelectedMechanicId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [estimateJob, setEstimateJob] = useState(null);
+  const [deleteJob, setDeleteJob] = useState(null);
+  const [deletingJob, setDeletingJob] = useState(false);
 
   // Tải danh sách phiếu sửa chữa
   useEffect(() => {
@@ -69,6 +71,27 @@ export default function RepairJobsPage() {
       setSubmitting(false);
     }
   }
+
+  async function handleDeleteJob() {
+    if (!deleteJob || deletingJob) return;
+    setDeletingJob(true);
+    setNotice({ text: '', type: '' });
+    try {
+      await api.delete(`/repair-jobs/${deleteJob.id}`);
+      setNotice({ text: `Đã xóa phiếu #${deleteJob.id}.`, type: 'success' });
+      setDeleteJob(null);
+      setReload((current) => current + 1);
+    } catch (err) {
+      setNotice({
+        text: err.response?.data?.message || 'Không thể xóa phiếu sửa chữa.',
+        type: 'error',
+      });
+      setDeleteJob(null);
+    } finally {
+      setDeletingJob(false);
+    }
+  }
+
   function handleEstimateCreated(jobId) {
   setEstimateJob(null);
 
@@ -178,7 +201,10 @@ export default function RepairJobsPage() {
                           : <button type="button" className="btn btn-outline" onClick={() => openAssign(j)}>Đổi thợ</button>
                       )}
                       {j.status === 'diagnosing' && <button type="button" className="btn btn-success" onClick={() => setEstimateJob(j)}>Lập báo giá</button>}
-                      {!['pending', 'diagnosing'].includes(j.status) && <span className="queue-action-muted">Đang theo dõi</span>}
+                      {['pending', 'diagnosing', 'estimated', 'cancelled'].includes(j.status) && (
+                        <button type="button" className="btn btn-danger" onClick={() => setDeleteJob(j)}>Xóa phiếu</button>
+                      )}
+                      {!['pending', 'diagnosing', 'estimated', 'cancelled'].includes(j.status) && <span className="queue-action-muted">Đang theo dõi</span>}
                     </div>
                   </td>
                 </tr>
@@ -248,6 +274,34 @@ export default function RepairJobsPage() {
           onClose={() => setEstimateJob(null)}
           onCreated={handleEstimateCreated}
         />
+      )}
+      {deleteJob && (
+        <div className="modal-backdrop">
+          <div className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="delete-repair-job-title">
+            <div className="modal-header">
+              <div>
+                <p className="eyebrow">Xóa dữ liệu phiếu</p>
+                <h2 id="delete-repair-job-title">Xác nhận xóa phiếu #{deleteJob.id}</h2>
+              </div>
+              <button type="button" className="btn btn-outline modal-close" onClick={() => setDeleteJob(null)} disabled={deletingJob} aria-label="Đóng">×</button>
+            </div>
+            <div className="assign-job-summary">
+              <p><span>Xe</span><strong>{deleteJob.license_plate} · {deleteJob.brand} {deleteJob.model}</strong></p>
+              <p><span>Khách hàng</span><strong>{deleteJob.customer_name}</strong></p>
+              <p><span>Trạng thái</span><strong><StatusBadge status={deleteJob.status} /></strong></p>
+            </div>
+            <p>Thao tác này xóa phiếu cùng chẩn đoán, phân công và báo giá liên quan. Xe và hồ sơ khách hàng vẫn được giữ lại.</p>
+            <p style={{ marginTop: 8, color: 'var(--text-secondary)' }}>
+              Phiếu đã được khách duyệt, đã bắt đầu sửa, có phụ tùng đã sử dụng hoặc có hóa đơn sẽ không thể xóa để bảo toàn lịch sử.
+            </p>
+            <div className="modal-actions">
+              <button type="button" className="btn btn-outline" onClick={() => setDeleteJob(null)} disabled={deletingJob}>Giữ lại</button>
+              <button type="button" className="btn btn-danger" onClick={handleDeleteJob} disabled={deletingJob}>
+                {deletingJob ? 'Đang xóa...' : 'Xóa phiếu'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

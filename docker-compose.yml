@@ -20,10 +20,11 @@ services:
     ports:
       - "5432:5432"
     volumes:
+      - workshop_db_data:/var/lib/postgresql/data
       # Chạy tự động toàn bộ migration khi tạo DB mới
       - ./database/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${DB_USER} -d ${DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -52,3 +53,7 @@ services:
       - "8080:80"
     depends_on:
       - backend
+
+volumes:
+  workshop_db_data:
+    name: automotive-repair-workshop-management-system_workshop_db_data

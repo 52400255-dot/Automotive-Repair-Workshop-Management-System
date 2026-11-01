@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node --test \"../tests/unit/*.test.js\""
+    "test": "node --test \"../tests/unit/*.test.js\"",
+    "test:coverage": "c8 --all --include=src/services/user.service.js --include=src/utils/pricing.js --include=src/utils/workflow.js --reporter=text --check-coverage --lines=60 --statements=60 --functions=60 --branches=60 node --test ../tests/unit/*.test.js"
   },
   "keywords": [],
   "author": "",
@@ -19,5 +20,8 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "c8": "^12.0.0"
   }
 }

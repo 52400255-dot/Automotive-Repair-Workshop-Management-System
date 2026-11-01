@@ -59,7 +59,7 @@ export default function AppRouter() {
             <ProtectedRoute roles={['mechanic']}><TaskBoardPage /></ProtectedRoute>
           } />
           <Route path="/inventory" element={
-            <ProtectedRoute roles={['warehouse_staff', 'receptionist', 'admin']}><InventoryPage /></ProtectedRoute>
+            <ProtectedRoute roles={['warehouse_staff', 'service_manager', 'receptionist', 'admin']}><InventoryPage /></ProtectedRoute>
           } />
           <Route path="/admin/roles" element={
           <ProtectedRoute roles={['admin']}><RoleManagementPage /></ProtectedRoute>

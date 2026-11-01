@@ -190,7 +190,7 @@ export default function CustomersPage() {
       reloadCustomers();
     } catch (error) {
       const message = error.response?.status === 409
-        ? 'Không thể xóa khách hàng vì đang có xe hoặc dữ liệu sửa chữa liên quan.'
+        ? 'Chưa thể xóa khách hàng: trước tiên xóa các phiếu đủ điều kiện, sau đó xóa xe liên quan.'
         : getErrorMessage(error, 'Không thể xóa khách hàng.');
 
       setDeleteTarget(null);
@@ -531,8 +531,10 @@ export default function CustomersPage() {
             </p>
 
             <p style={{ marginTop: 8, color: 'var(--text-secondary)' }}>
-              Khách hàng đang có xe hoặc dữ liệu sửa chữa liên quan sẽ không
-              thể bị xóa.
+              Để xóa khách hàng, trước tiên xóa các phiếu sửa chữa đủ điều kiện,
+              rồi xóa xe liên quan trong mục Quản lý xe. Phiếu đã duyệt, bắt đầu
+              sửa, dùng phụ tùng hoặc có hóa đơn sẽ được giữ lại. Tài khoản khách
+              liên kết (nếu có) cũng sẽ bị xóa cùng hồ sơ.
             </p>
 
             <div className="modal-actions">

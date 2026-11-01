@@ -32,6 +32,10 @@ const PORT = env.port;
 app.use(cors());
 app.use(express.json());
 
+app.get('/', (req, res) => {
+  res.status(200).json({ success: true, message: 'Workshop API is running', health: '/api/health' });
+});
+
 // ---- Routes ----
 app.use('/api/health', healthRoutes);
 app.use('/api/v1/auth', authRoutes);

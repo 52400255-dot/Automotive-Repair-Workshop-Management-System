@@ -28,6 +28,10 @@ Thumbs.db
 # Test coverage
 coverage/
 
+# Playwright output
+frontend/playwright-report/
+frontend/test-results/
+
 # Temporary files
 tmp/
 temp/
