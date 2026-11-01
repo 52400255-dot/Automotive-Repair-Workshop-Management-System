@@ -2,6 +2,9 @@
  * customer.service — CRUD khách hàng và truy vấn xe theo khách hàng
  */
 const { pool } = require('../config/db');
+const fail = (statusCode, message) => {
+  throw Object.assign(new Error(message), { statusCode });
+};
 
 async function findAll() {
   const result = await pool.query(
@@ -76,12 +79,59 @@ async function update(id, { fullName, phone, email, address }) {
 }
 
 async function remove(id) {
-  const result = await pool.query(
-    'DELETE FROM customers WHERE id = $1 RETURNING id',
-    [id]
-  );
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const customer = (await client.query(
+      'SELECT id, user_id FROM customers WHERE id = $1 FOR UPDATE',
+      [id]
+    )).rows[0];
+    if (!customer) {
+      await client.query('COMMIT');
+      return null;
+    }
 
-  return result.rows[0] || null;
+    const vehicles = await client.query(
+      'SELECT id FROM vehicles WHERE customer_id = $1 FOR UPDATE',
+      [id]
+    );
+    if (vehicles.rowCount) {
+      fail(409, 'Khách hàng vẫn còn xe. Hãy xóa các phiếu đủ điều kiện, rồi xóa xe trước.');
+    }
+
+    if (customer.user_id) {
+      const account = (await client.query(
+        'SELECT role FROM users WHERE id = $1 FOR UPDATE',
+        [customer.user_id]
+      )).rows[0];
+      if (!account || account.role !== 'customer') {
+        fail(409, 'Tài khoản liên kết không còn là tài khoản khách; cần kiểm tra trước khi xóa hồ sơ');
+      }
+      const references = await client.query(
+        `SELECT EXISTS (SELECT 1 FROM repair_jobs WHERE receptionist_id = $1)
+             OR EXISTS (SELECT 1 FROM diagnoses WHERE mechanic_id = $1)
+             OR EXISTS (SELECT 1 FROM inventory_movements WHERE recorded_by = $1)
+             OR EXISTS (SELECT 1 FROM mechanic_assignments WHERE mechanic_id = $1 OR assigned_by = $1)
+           AS has_staff_history`,
+        [customer.user_id]
+      );
+      if (references.rows[0].has_staff_history) {
+        fail(409, 'Tài khoản khách đã được dùng trong lịch sử nhân viên; cần kiểm tra trước khi xóa');
+      }
+    }
+
+    await client.query('DELETE FROM customers WHERE id = $1', [id]);
+    if (customer.user_id) {
+      await client.query('DELETE FROM users WHERE id = $1 AND role = \'customer\'', [customer.user_id]);
+    }
+    await client.query('COMMIT');
+    return { id };
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch { /* transaction may already be closed */ }
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 async function getVehicles(customerId) {

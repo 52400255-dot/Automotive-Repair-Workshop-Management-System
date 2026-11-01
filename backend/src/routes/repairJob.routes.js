@@ -20,7 +20,9 @@ router.get('/:id', authorize('receptionist', 'service_manager', 'admin', 'mechan
 router.post('/', authorize('receptionist'), controller.create);
 
 // Cập nhật trạng thái (toàn luồng)
-router.put('/:id/status', authorize('receptionist', 'service_manager', 'mechanic'), controller.updateStatus);
+router.put('/:id/status', authorize('receptionist', 'service_manager', 'mechanic', 'admin'), controller.updateStatus);
+// Chỉ quản lý xưởng, lễ tân hoặc admin được xóa phiếu chưa phát sinh dữ liệu tài chính/kho.
+router.delete('/:id', authorize('receptionist', 'service_manager', 'admin'), controller.remove);
 
 // Service Manager phân công thợ (hỗ trợ cả PUT /:id/assign và PUT /assign { repairJobId, mechanicId })
 router.put('/assign', authorize('service_manager', 'receptionist'), (req, res, next) => {

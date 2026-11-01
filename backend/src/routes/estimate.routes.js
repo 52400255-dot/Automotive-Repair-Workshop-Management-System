@@ -9,13 +9,14 @@ const { authorize } = require('../middleware/rbac');
 
 router.use(authenticateToken);
 
+router.get('/my', authorize('customer'), controller.listMine);
 router.get('/:id', authorize('customer', 'receptionist', 'service_manager', 'admin'), controller.getById);
 
 // Lễ tân tạo báo giá
 router.post('/', authorize('receptionist'), controller.create);
 
-// Khách hàng / lễ tân duyệt hoặc từ chối báo giá
-router.put('/:id/approve', authorize('customer', 'receptionist'), controller.approve);
-router.put('/:id/reject', authorize('customer', 'receptionist'), controller.reject);
+// Khách hàng sở hữu báo giá là người xác nhận hoặc từ chối.
+router.put('/:id/approve', authorize('customer'), controller.approve);
+router.put('/:id/reject', authorize('customer'), controller.reject);
 
 module.exports = router;

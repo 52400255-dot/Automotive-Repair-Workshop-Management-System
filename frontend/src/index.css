@@ -1,3 +1,15 @@
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 :root {
   font-family: var(--font);
   color: #202c32;
@@ -195,6 +207,7 @@ h3 { font-size: 1.05rem; font-weight: 700; line-height: 1.35; }
   transition: transform .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
 .btn:hover:not(:disabled) { transform: translateY(-1px); }
+.btn-login:hover:not(:disabled) { transform: none; }
 .btn:active:not(:disabled) { transform: translateY(0); }
 .btn-primary { color: #fff; background: var(--primary); box-shadow: 0 3px 8px rgba(36, 107, 96, .16); }
 .btn-primary:hover:not(:disabled) { color: #fff; background: var(--primary-dark); }
@@ -299,6 +312,9 @@ td[colspan] { padding: 26px 16px; color: #84908e; text-align: center; }
 .demo-account { min-height: 31px; padding: 6px 9px; color: #596a6a; background: #f6f7f4; border: 1px solid #e5e9e5; border-radius: 7px; cursor: pointer; font-size: 10px; font-weight: 600; transition: border-color .15s ease, background .15s ease, color .15s ease; }
 .demo-account:hover { color: var(--primary-dark); background: #edf5f1; border-color: #c9ded5; }
 .demo-password { margin: 10px 0 0; color: #84908e; font-size: 10px; }
+.login-mode-toggle { display: flex; justify-content: center; gap: 4px; margin: 17px 0 0; color: #77837f; font-size: 11px; }
+.login-mode-toggle button { padding: 0; color: var(--primary-dark); background: transparent; border: 0; cursor: pointer; font: inherit; font-weight: 750; }
+.login-mode-toggle button:hover { text-decoration: underline; }
 
 /* Compact, non-routed reference screens */
 .legacy-page { padding: 4px 0; }
@@ -566,6 +582,20 @@ tbody tr:hover td { background: #f8faf8; }
 .portal-empty-state h2 { margin: 0 0 4px; font-size: 15px; }
 .portal-empty-state p { margin: 0; color: #7d8984; font-size: 12px; }
 .portal-empty-mark { flex: 0 0 40px; }
+.portal-estimate-section { margin-bottom: 20px; }
+.portal-section-heading { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 12px; }
+.portal-section-heading .eyebrow { margin: 0 0 4px; }
+.portal-section-heading h2 { margin: 0; font-size: 19px; }
+.portal-estimate-list { display: grid; gap: 13px; }
+.portal-estimate-card { padding: 17px 19px; }
+.portal-estimate-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.portal-estimate-heading h3 { margin: 4px 0; color: #283b3b; font-size: 14px; }
+.portal-estimate-heading p:not(.portal-vehicle-label) { margin: 0; color: #6d7b76; font-size: 12px; line-height: 1.5; }
+.portal-estimate-table { margin-top: 12px; }
+.portal-estimate-total { display: flex; align-items: center; justify-content: space-between; margin: 11px 0; padding: 11px 13px; background: #f6f8f5; border-radius: 8px; color: #61706a; font-size: 12px; }
+.portal-estimate-total strong { color: var(--primary-dark); font-size: 16px; }
+.portal-estimate-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.portal-estimate-empty { padding: 16px; color: #74817c; font-size: 12px; }
 
 /* Older reference screens remain consistent if opened directly. */
 .legacy-page .page-header { align-items: flex-end; }
@@ -787,7 +817,8 @@ tbody tr:hover td { background: #f8faf8; }
 .repair-status-tab.is-active > span { color: #3d6e5e; background: #fff; }
 .repair-search { display: flex; width: min(270px, 30%); min-width: 195px; height: 35px; flex: 0 0 auto; align-items: center; gap: 7px; padding: 0 10px; color: #89958e; background: #fbfcfa; border: 1px solid #e4e9e4; border-radius: 8px; }
 .repair-search > span { font-size: 18px; line-height: 1; }
-.repair-search input { width: 100%; min-width: 0; color: #43544b; background: transparent; border: 0; outline: 0; font-size: 9px; }
+.repair-search input[type='search'] { width: 0; min-width: 0; min-height: 0; height: 100%; flex: 1 1 0; padding: 0; color: #43544b; background: transparent; border: 0; border-radius: 0; box-shadow: none; outline: 0; font-size: 9px; appearance: none; }
+.repair-search input[type='search']:focus { border: 0; box-shadow: none; outline: 0; }
 .repair-search input::placeholder { color: #a0aaa4; }
 .repair-queue-table { padding: 0 10px; }
 .repair-queue-table table { min-width: 990px; }

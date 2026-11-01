@@ -1,8 +1,8 @@
 /**
  * Middleware xác thực JWT (JWT Authentication Middleware)
  *
- * Kiểm tra token từ header Authorization, giải mã và gắn thông tin
- * người dùng vào req.user để các middleware/controller phía sau sử dụng.
+ * Kiểm tra token từ header Authorization, đọc role hiện tại trong database,
+ * rồi gắn thông tin người dùng vào req.user cho middleware/controller phía sau.
  *
  * Buổi 9 — sửa cảnh báo SonarLint S2486 "no-ignored-exceptions":
  *   catch (err) trước đây bắt lỗi nhưng KHÔNG dùng đến err, khiến ba vấn đề
@@ -11,16 +11,18 @@
  */
 const jwt = require('jsonwebtoken');
 const { env } = require('../config/env');
+const { pool } = require('../config/db');
+const { isPositiveId } = require('../utils/workflow');
 
 /** Những lỗi token do thư viện jwt ném ra — trả 401; lỗi khác chuyển next(err). */
 const JWT_ERROR_NAMES = new Set(['TokenExpiredError', 'JsonWebTokenError', 'NotBeforeError']);
 
 /**
- * authenticateToken — Xác thực Bearer token
+ * authenticateToken — Xác thực Bearer token và trạng thái tài khoản hiện tại
  * Không có hoặc không hợp lệ token → 401,
  * lỗi không thuộc về JWT → chuyển cho error handler toàn cục qua next(err).
  */
-function authenticateToken(req, res, next) {
+async function authenticateToken(req, res, next) {
   // Lấy header Authorization (dạng "Bearer <token>")
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.startsWith('Bearer ')
@@ -52,12 +54,36 @@ function authenticateToken(req, res, next) {
     });
   }
 
+  if (!isPositiveId(decoded.id)) {
+    return res.status(401).json({
+      success: false,
+      message: 'Token không hợp lệ (Invalid or malformed token)',
+    });
+  }
+
+  let currentUser;
+  try {
+    // The database is the source of truth for access control. This makes role
+    // changes and account deletion take effect even for previously issued JWTs.
+    const result = await pool.query('SELECT role FROM users WHERE id = $1', [decoded.id]);
+    currentUser = result.rows[0];
+  } catch (err) {
+    return next(err);
+  }
+
+  if (!currentUser) {
+    return res.status(401).json({
+      success: false,
+      message: 'Tài khoản không còn tồn tại (Account no longer exists)',
+    });
+  }
+
   // Gắn thông tin user vào request để dùng ở các tầng sau.
-  // next() đặt NGOÀI khối try: lỗi của middleware/controller phía sau
-  // không bị biến thành "Token không hợp lệ" và không gây gửi 2 response.
+  // Role comes from PostgreSQL so a demoted account cannot keep old privileges
+  // until the JWT expires. next() stays outside the try for downstream errors.
   req.user = {
     id: decoded.id,
-    role: decoded.role,
+    role: currentUser.role,
     email: decoded.email,
   };
 

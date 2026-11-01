@@ -29,20 +29,20 @@ const PORT = Number(process.env.TEST_PORT || 3111);
 const BASE = `http://localhost:${PORT}/api/v1`;
 const SECRET = 'integration_test_secret';
 
-/** Ký JWT trực tiếp (middleware chỉ đọc payload, không truy vấn DB) */
+/** Ký JWT trực tiếp cho user fixtures trong database test. */
 const token = (user) => jwt.sign(user, SECRET, { expiresIn: '1h' });
 
 let tokens = {
-  receptionist: token({ id: '1', role: 'receptionist', email: 'rec.test@workshop.vn' }),
-  manager: token({ id: '5', role: 'service_manager', email: 'mgr.test@workshop.vn' }),
-  mechanic: token({ id: '3', role: 'mechanic', email: 'mec.test@workshop.vn' }),
+  receptionist: null,
+  manager: null,
+  mechanic: null,
   ownerCustomer: null,
   strangerCustomer: null,
 };
 
 let server;
 let db;
-const fixtures = { receptionist: null, mechanic: null, sparePart: null,
+const fixtures = { receptionist: null, mechanic: null, manager: null, sparePart: null,
   customerUserA: null, customerUserB: null,
   customerA: null, customerB: null, vehicleA: null, vehicleB: null,
   jobA1: null, jobA2: null, jobB1: null, service: null };
@@ -95,6 +95,10 @@ before(async () => {
     `INSERT INTO users (full_name, email, password_hash, role)
      VALUES ('US03 Mechanic', 'us03.mec@integration.test', 'not-a-real-hash', 'mechanic')
      RETURNING id`)).id;
+  fixtures.manager = (await mk(
+    `INSERT INTO users (full_name, email, password_hash, role)
+     VALUES ('US03 Manager', 'us03.manager@integration.test', 'not-a-real-hash', 'service_manager')
+     RETURNING id`)).id;
   fixtures.sparePart = (await mk(
     `INSERT INTO spare_parts (part_code, part_name, unit, stock_quantity, unit_price, min_stock)
      VALUES ('US03-PART', 'Loc dau', 'piece', 100, 150000, 5) RETURNING id`)).id;
@@ -108,6 +112,9 @@ before(async () => {
     `INSERT INTO users (full_name, email, password_hash, role)
      VALUES ('US03 Stranger', 'us03.stranger@integration.test', 'not-a-real-hash', 'customer')
      RETURNING id`)).id;
+  tokens.receptionist = token({ id: String(fixtures.receptionist), role: 'receptionist', email: 'us03.rec@integration.test' });
+  tokens.manager = token({ id: String(fixtures.manager), role: 'service_manager', email: 'us03.manager@integration.test' });
+  tokens.mechanic = token({ id: String(fixtures.mechanic), role: 'mechanic', email: 'us03.mec@integration.test' });
   tokens.ownerCustomer = token({
     id: String(fixtures.customerUserA), role: 'customer', email: 'us03.owner@integration.test',
   });
@@ -195,7 +202,7 @@ after(async () => {
     if (fixtures.vehicleA) await safe('DELETE FROM vehicles WHERE id = ANY($1::bigint[])', [[fixtures.vehicleA, fixtures.vehicleB].filter(Boolean)]);
     if (fixtures.customerA) await safe('DELETE FROM customers WHERE id = ANY($1::bigint[])', [[fixtures.customerA, fixtures.customerB].filter(Boolean)]);
     if (fixtures.sparePart) await safe('DELETE FROM spare_parts WHERE id = $1', [fixtures.sparePart]);
-    const userIds = [fixtures.receptionist, fixtures.mechanic,
+    const userIds = [fixtures.receptionist, fixtures.mechanic, fixtures.manager,
       fixtures.customerUserA, fixtures.customerUserB].filter(Boolean);
     if (userIds.length) await safe('DELETE FROM users WHERE id = ANY($1::bigint[])', [userIds]);
     await db.end();

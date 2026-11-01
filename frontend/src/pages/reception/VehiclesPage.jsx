@@ -347,7 +347,7 @@ export default function VehiclesPage() {
       reloadData();
     } catch (error) {
       const message = error.response?.status === 409
-        ? 'Không thể xóa xe vì đang có phiếu sửa chữa liên quan.'
+        ? 'Không thể xóa xe vì vẫn còn phiếu sửa chữa liên quan. Hãy xóa các phiếu đủ điều kiện trước.'
         : getErrorMessage(error, 'Không thể xóa xe.');
 
       setDeleteTarget(null);
@@ -649,7 +649,8 @@ export default function VehiclesPage() {
                 color: 'var(--text-secondary)',
               }}
             >
-              Xe đang có phiếu sửa chữa liên quan sẽ không thể bị xóa.
+              Hãy xóa các phiếu sửa chữa đủ điều kiện trước. Xe còn phiếu đã duyệt,
+              bắt đầu sửa, dùng phụ tùng hoặc có hóa đơn sẽ không thể bị xóa.
             </p>
 
             <div className="modal-actions">

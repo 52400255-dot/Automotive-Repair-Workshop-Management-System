@@ -38,8 +38,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
         working-directory: backend
-      - name: Unit tests (pricing, tax, inventory)
+      - name: Unit tests
         run: npm test
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+      - name: Unit tests with business-logic coverage (60% minimum)
+        run: npm run test:coverage
+        working-directory: backend
 
   api-integration:
     runs-on: ubuntu-latest
@@ -77,10 +93,10 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - name: Run database migrations
-        # Duong dan ket noi lap tu bien moi truong, khong ghi chuoi mat khau trong URL.
+        # Pass the password separately so special characters need no URI escaping.
         run: |
           for f in database/migrations/*.sql; do
-            psql "postgresql://$DB_USER:$DB_PASSWORD@localhost:$DB_PORT/$DB_NAME" -X -v ON_ERROR_STOP=1 -1 -f "$f"
+            PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -1 -f "$f"
           done
       - name: Install backend dependencies
         run: npm ci
@@ -93,3 +109,61 @@ jobs:
           echo " <- health OK"
       - name: Integration tests (repair, estimate and inventory workflows)
         run: npm run test:integration
+
+  role-management-e2e:
+    runs-on: ubuntu-latest
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: workshop_user
+      DB_NAME: workshop_role_test_db
+      DB_PASSWORD: ${{ secrets.CI_DB_PASSWORD || 'ci_only_throwaway_not_a_real_secret' }}
+      JWT_SECRET: ${{ secrets.CI_JWT_SECRET || 'ci_only_throwaway_jwt_secret_at_least_32_chars' }}
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: workshop_user
+          POSTGRES_PASSWORD: ${{ secrets.CI_DB_PASSWORD || 'ci_only_throwaway_not_a_real_secret' }}
+          POSTGRES_DB: workshop_role_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U workshop_user"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - name: Apply database migrations
+        run: |
+          for f in database/migrations/*.sql; do
+            PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -X -v ON_ERROR_STOP=1 -1 -f "$f"
+          done
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Install Playwright Chromium and system dependencies
+        run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - name: Run role-management browser E2E
+        run: npm run test:e2e
+        working-directory: frontend
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: role-management-playwright-report
+          path: frontend/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7

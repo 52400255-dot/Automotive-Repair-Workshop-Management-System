@@ -11,7 +11,7 @@ async function list(req, res, next) {
 
 async function updateRole(req, res, next) {
   try {
-    const updated = await userService.updateRole(req.params.id, req.body.role);
+    const updated = await userService.updateRole(req.params.id, req.body.role, req.user.id);
     res.json({ success: true, data: updated });
   } catch (err) { next(err); }
 }

@@ -851,9 +851,9 @@ paths:
       description: >
         Người không phải admin luôn nhận 403, kể cả khi id hoặc body sai (quyền được kiểm tra trước).
         Đổi sang đúng role hiện tại vẫn trả 200 cùng bản ghi người dùng.
-        Vai trò được đọc từ JWT khi gọi API: token cấp trước khi đổi role vẫn mang role cũ,
-        người bị đổi role phải đăng nhập lại để nhận token mới.
-        Đăng ký công khai (POST /auth/register) không nhận role; đây là cách duy nhất để đổi role.
+        Middleware đọc role hiện tại từ PostgreSQL ở mỗi request nên role mới có hiệu lực với JWT đã cấp.
+        Tài khoản đã xóa không thể tiếp tục dùng token cũ. Đăng ký công khai luôn tạo role customer;
+        chỉ admin mới có thể đổi role qua endpoint này.
       operationId: updateUserRole
       security: [{ bearerAuth: [] }]
       parameters:
@@ -954,6 +954,22 @@ paths:
               example:
                 success: false
                 message: Không tìm thấy người dùng
+        '409':
+          description: Không thể tự hạ quyền admin hoặc hạ quyền admin cuối cùng
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                selfDemotion:
+                  summary: Admin không thể tự hạ quyền
+                  value:
+                    success: false
+                    message: Không thể tự hạ quyền quản trị của chính mình
+                lastAdmin:
+                  summary: Không thể hạ quyền admin cuối cùng
+                  value:
+                    success: false
+                    message: Không thể hạ quyền quản trị viên cuối cùng
 
 components:
   securitySchemes:

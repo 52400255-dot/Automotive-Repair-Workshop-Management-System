@@ -11,7 +11,7 @@ const NAV_ITEMS = [
   { to: '/repair-jobs', label: 'Phiếu sửa chữa', icon: 'repairs', roles: ['receptionist', 'service_manager', 'admin'] },
   { to: '/vehicle-history', label: 'Lịch sử sửa chữa', icon: 'history', roles: ['receptionist', 'service_manager', 'admin'] },
   { to: '/task-board', label: 'Bảng công việc', icon: 'tasks', roles: ['mechanic'] },
-  { to: '/inventory', label: 'Kho phụ tùng', icon: 'inventory', roles: ['warehouse_staff', 'receptionist', 'admin'] },
+  { to: '/inventory', label: 'Kho phụ tùng', icon: 'inventory', roles: ['warehouse_staff', 'service_manager', 'receptionist', 'admin'] },
   { to: '/customers', label: 'Khách hàng', icon: 'customers', roles: ['receptionist', 'admin'] },
   { to: '/vehicles', label: 'Quản lý xe', icon: 'vehicles', roles: ['receptionist', 'admin'] },
   {to: '/admin/roles',label: 'Vai trò & phân quyền',icon: 'customers',roles: ['admin'],},

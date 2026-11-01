@@ -3,6 +3,13 @@
  */
 const estimateService = require('../services/estimate.service');
 
+async function listMine(req, res, next) {
+  try {
+    const estimates = await estimateService.findForCustomer(req.user.id);
+    res.json({ success: true, data: estimates });
+  } catch (err) { next(err); }
+}
+
 async function getById(req, res, next) {
   try {
     if (req.user.role === 'customer'
@@ -33,4 +40,4 @@ async function reject(req, res, next) {
   catch (err) { next(err); }
 }
 
-module.exports = { getById, create, approve, reject };
+module.exports = { listMine, getById, create, approve, reject };

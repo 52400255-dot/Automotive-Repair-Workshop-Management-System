@@ -31,12 +31,8 @@ async function login(req, res, next) {
 
 async function register(req, res, next) {
   try {
-    const { fullName, email, password } = req.body;
-    const existing = await authService.findByEmail(email);
-    if (existing) {
-      return res.status(409).json({ success: false, message: 'Email đã tồn tại' });
-    }
-    const user = await authService.createUser({ fullName, email, password });
+    const { fullName, email, password, phone } = req.body || {};
+    const user = await authService.registerCustomer({ fullName, email, password, phone });
     res.status(201).json({ success: true, data: user });
   } catch (err) { next(err); }
 }
