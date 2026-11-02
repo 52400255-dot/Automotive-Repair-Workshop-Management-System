@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import api from '../../services/api';
 import RoleChangeDialog from '../../components/RoleChangeDialog';
 
@@ -23,30 +23,33 @@ export default function RoleManagementPage() {
   const [dialogError, setDialogError] = useState('');
   const [status, setStatus] = useState('');
 
-  useEffect(() => {
-    let active = true;
-
-    async function loadUsers() {
-      setLoading(true);
-      setError('');
-      try {
-        const response = await api.get('/users');
-        if (!active) return;
-        const loadedUsers = response.data.data;
-        setUsers(loadedUsers);
-        setDraftRoles(Object.fromEntries(loadedUsers.map((user) => [user.id, user.role])));
-      } catch (loadError) {
-        if (active) {
-          setError(loadError.response?.data?.message || 'Không tải được danh sách người dùng.');
-        }
-      } finally {
-        if (active) setLoading(false);
-      }
+  // Hàm tải danh sách người dùng từ API.
+  // Dùng cho cả lúc mở trang lẫn sau khi đổi role thành công.
+  // Trả về true nếu tải được, false nếu lỗi.
+  const loadUsers = useCallback(async () => {
+    setError('');
+    try {
+      const response = await api.get('/users');
+      const loadedUsers = response.data.data;
+      setUsers(loadedUsers);
+      // Đặt lại ô chọn role theo đúng dữ liệu vừa tải
+      setDraftRoles(Object.fromEntries(loadedUsers.map((user) => [user.id, user.role])));
+      return true;
+    } catch (loadError) {
+      // Giữ nguyên thông báo lỗi do API trả về (401/403/...)
+      setError(loadError.response?.data?.message || 'Không tải được danh sách người dùng.');
+      return false;
     }
-
-    loadUsers();
-    return () => { active = false; };
   }, []);
+
+  // Tải dữ liệu lần đầu khi mở trang
+  useEffect(() => {
+    async function firstLoad() {
+      await loadUsers();
+      setLoading(false);
+    }
+    firstLoad();
+  }, [loadUsers]);
 
   async function confirmRoleChange() {
     if (!selectedUser) return;
@@ -56,13 +59,16 @@ export default function RoleManagementPage() {
     setDialogError('');
     setStatus('');
     try {
-      const response = await api.patch(`/users/${selectedUser.id}/role`, { role: nextRole });
-      const updatedUser = response.data.data;
-      setUsers((currentUsers) => currentUsers.map((user) => (
-        user.id === updatedUser.id ? updatedUser : user
-      )));
-      setDraftRoles((currentRoles) => ({ ...currentRoles, [updatedUser.id]: updatedUser.role }));
-      setStatus(`Đã cập nhật vai trò cho ${updatedUser.full_name}.`);
+      // Gửi yêu cầu đổi role (admin đã xác nhận trong hộp thoại)
+      await api.patch(`/users/${selectedUser.id}/role`, { role: nextRole });
+
+      // Tải lại dữ liệu từ API để xác nhận role đã thật sự được lưu
+      const reloaded = await loadUsers();
+      setStatus(
+        reloaded
+          ? `Đã cập nhật vai trò cho ${selectedUser.full_name}.`
+          : 'Đã gửi cập nhật nhưng chưa tải lại được dữ liệu để xác nhận.'
+      );
       setSelectedUser(null);
     } catch (saveError) {
       setDialogError(saveError.response?.data?.message || 'Không cập nhật được vai trò.');
