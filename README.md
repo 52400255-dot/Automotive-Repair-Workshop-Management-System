@@ -23,43 +23,45 @@ Hệ thống web quản lý toàn bộ quy trình sửa chữa ô tô:
 |---|---|
 | **Frontend** | React 19 + Vite + React Router 7 + Axios |
 | **Backend** | Node.js 22 + Express 5 (routes → controllers → services) |
-| **Database** | PostgreSQL 16 — 15 migrations, parameterized query, transaction, FK/CHECK |
+| **Database** | PostgreSQL 16 — 19 migrations, parameterized query, transaction, FK/CHECK |
 | **Auth** | JWT (HS256) + RBAC 6 vai trò, bcrypt password hash |
 | **API Contract** | OpenAPI 3.1 — `api/openapi.yaml` |
-| **Testing** | Node.js built-in test runner — 105 unit tests, 18 API integration tests, Playwright browser E2E |
+| **Testing** | Node.js built-in test runner — unit test, API integration test, Playwright browser E2E |
 | **Container** | Docker Compose 3 dịch vụ: `db` + `backend` + `frontend`; database dùng named volume để giữ dữ liệu qua lần khởi động lại |
-| **CI/CD** | GitHub Actions — lint, build, unit test, migration smoke test |
+| **CI/CD** | GitHub Actions — lint, build, unit test, coverage gate, API integration, health check, Playwright E2E |
 
 ---
 
-## Kế hoạch Sprint ban đầu
+## Tiến độ dự án — cập nhật 03/11/2026
 
-| Sprint | Tuần | Nội dung | Trạng thái |
-|---|---|---|---|
-| 1 | 1 | Nền tảng: requirements, kiến trúc, Auth (US16, US17) | ✅ Hoàn thành |
-| 2 | 2 | Khách hàng & xe (US01, US02, US03) | ✅ Hoàn thành |
-| **3** | **3** | **Tiếp nhận, phân công, chẩn đoán (US04, US06, US07, US08)** | ✅ **Hoàn thành** |
-| 4 | 4 | Kho phụ tùng & tiến độ (US09, US10, US11, US12) | 🔲 Chưa bắt đầu |
-| 5 | 5 | Báo giá & hóa đơn (US13, US14, US15) | 🔲 Chưa bắt đầu |
-| 6 | 6 | Buffer & cải tiến | 🔲 Chưa bắt đầu |
-| 7 | 7 | Kiểm thử tổng lực (US18, US19) | 🔲 Chưa bắt đầu |
-| 8 | 8 | Triển khai & hoàn thiện (US20) | 🔲 Chưa bắt đầu |
+Code hiện tại trên `main` đã có các luồng khách hàng/xe, sửa chữa, kho, báo giá, phân quyền và kiểm thử. US01–US14 và US16–US19 đã có trong code; phần còn lại là bổ sung UI hóa đơn cho US15 và triển khai public cho US20. Các PR tính năng US17, US18 và US19 đã được merge; commit mới nhất trong checkout là `03c5f78` (merge PR #45, ngày 02/11/2026).
 
-### Cập nhật công việc tuần 5 — M4 Việt (01/11/2026)
+| Sprint | Phạm vi | Trạng thái hiện tại |
+|---|---|---|
+| 1 | Nền tảng, đăng nhập và phân quyền (US16, US17) | ✅ Hoàn thành, đã merge |
+| 2 | Khách hàng, xe và lịch sử sửa chữa (US01–US03) | ✅ Hoàn thành |
+| 3 | Tiếp nhận, tạo phiếu và chẩn đoán (US04–US06) | ✅ Hoàn thành |
+| 4 | Phân công, bảng việc và tiến độ sửa chữa (US07–US09) | ✅ Hoàn thành |
+| 5 | Kho phụ tùng, ghi nhận sử dụng và cảnh báo tồn (US10–US12) | ✅ Hoàn thành |
+| 6 | Báo giá, tính chi phí và hóa đơn (US13–US15) | 🟡 API/nghiệp vụ có; giao diện hóa đơn còn thiếu |
+| 7 | Unit, API integration, browser E2E và CI (US18–US19) | ✅ Hoàn thành, đã merge |
+| 8 | Triển khai và hoàn thiện (US20) | 🔄 CI và Docker Compose đã có; chưa cấu hình triển khai public |
+
+### Nhật ký công việc tuần 5 — M4 Việt (01/11/2026)
 
 Tuần này tập trung vào coverage, kiểm thử API và E2E trình duyệt cho phân quyền. Đồng thời đã tích hợp một số sửa lỗi phát hiện khi chạy dự án bằng Docker và hoàn thiện luồng tài khoản khách hàng, báo giá, xóa phiếu sửa chữa.
 
 | Hạng mục | Thay đổi / kết quả |
 |---|---|
-| **US18 — Coverage** | Thêm lệnh `npm run test:coverage` cho business logic đã chọn, đặt ngưỡng tối thiểu 60% cho line, statement, function và branch; thêm unit test RBAC cho phép role, từ chối role (403), và chưa xác thực (401). Local: **105/105 unit test đạt; line coverage 99,39%, branch 96,09%, function 100%**. |
-| **US19 — API integration** | Thêm fixture tạo/dọn user thử nghiệm và integration test API quản lý role: admin xem/đổi role; role thường và anonymous bị chặn; kiểm tra role sai, ID không tồn tại, không lộ `password_hash`, quyền JWT cũ, admin cuối cùng và request đồng thời. Local: **18/18 integration test đạt** trên PostgreSQL riêng tên có hậu tố `_test`. |
-| **US19 — Browser E2E** | Thêm Playwright config và hai luồng E2E cho admin đổi role, tải lại xác nhận dữ liệu đã lưu, và người dùng thường không truy cập được màn quản lý role. Chỉnh nút đăng nhập không dịch chuyển khi hover và chờ hiệu ứng kết thúc trước thao tác; local: **2/2 E2E đạt**. |
-| **CI** | Thêm job coverage và job role-management E2E vào GitHub Actions; lưu Playwright report làm artifact. Frontend lint và production build đạt local; GitHub Actions run #52 cho PR #44 đã xanh ở cả 5 job. |
+| **US18 — Coverage** | Thêm lệnh `npm run test:coverage` cho business logic đã chọn, đặt ngưỡng tối thiểu 60% cho line, statement, function và branch; bổ sung unit test xác thực và RBAC. |
+| **US19 — API integration** | Bổ sung integration test cho luồng sửa chữa, lịch sử xe, báo giá/kho và quản lý role; chạy trên PostgreSQL test riêng. |
+| **US19 — Browser E2E** | Thêm Playwright config và luồng E2E quản trị role: admin đổi role, tải lại xác nhận dữ liệu đã lưu, người dùng thường bị chặn khỏi màn quản lý role. |
+| **CI** | GitHub Actions chạy frontend lint/build, unit test, coverage gate, API integration, health check và Playwright E2E; lưu Playwright report làm artifact. |
 | **Đăng ký khách hàng / duyệt báo giá** | Đăng ký tài khoản khách nối hồ sơ có sẵn bằng email và số điện thoại; tạo user + liên kết hồ sơ trong transaction; thêm danh sách báo giá của đúng khách và thao tác đồng ý/từ chối trên portal. Duyệt/từ chối được giới hạn cho khách sở hữu báo giá. |
 | **Xóa phiếu sửa chữa** | Thêm endpoint và thao tác xóa phiếu cho lễ tân/quản lý/admin. Xóa trong transaction kèm dữ liệu con; chặn phiếu đã được duyệt, đã bắt đầu sửa/hoàn tất, đã ghi nhận phụ tùng hoặc có hóa đơn để bảo toàn lịch sử. Xóa khách cần dọn phiếu đủ điều kiện rồi xóa xe trước. |
 | **Docker / giao diện** | Đồng bộ role DB với database hiện có, chuyển dữ liệu sang named volume bền vững, thêm phản hồi `GET /`, cấp quyền xem kho cho quản lý dịch vụ nhưng vẫn giữ quyền nhập kho riêng, và sửa ô tìm kiếm phiếu bị tràn. Docker Compose khởi động lại thành công, health check PostgreSQL healthy. |
 
-**Còn thiếu để đóng US17/US18/US19:** có ít nhất một reviewer approve và merge PR theo quy trình nhóm. GitHub Actions run #52 đã xanh; DoD trên GitHub yêu cầu review và merge nên các issue vẫn mở đến khi PR được merge.
+Các thay đổi US17 đã được merge qua PR #42–#45; US18/US19 đã được merge qua PR #44. Trạng thái issue trên GitHub có thể khác trạng thái code trong nhánh `main`.
 
 ---
 
@@ -67,16 +69,26 @@ Tuần này tập trung vào coverage, kiểm thử API và E2E trình duyệt c
 
 | US | Tên | Trạng thái | API endpoint / Trang UI |
 |---|---|---|---|
-| US01 | Quản lý khách hàng | ✅ | `GET/POST/PUT /api/v1/customers` — `/customers` |
-| US02 | Quản lý phương tiện | ✅ | `GET/POST/PUT /api/v1/vehicles` — `/customers` |
-| US03 | Xem lịch sử sửa chữa theo xe | ✅ | `GET /api/v1/vehicles/:id/repair-history` — `/vehicle-history` |
-| US04 | Tiếp nhận xe tạo phiếu sửa | ✅ | `POST /api/v1/repair-jobs` — `/reception` |
-| US06 | Thợ ghi nhận chẩn đoán kỹ thuật | ✅ | `PUT /api/v1/repair-jobs/:id/diagnosis` — `/task-board` |
+| US01 | Quản lý khách hàng | ✅ | CRUD `/api/v1/customers` — `/customers` |
+| US02 | Quản lý phương tiện | ✅ | CRUD `/api/v1/vehicles` — `/vehicles` |
+| US03 | Lịch sử sửa chữa theo xe | ✅ | `GET /api/v1/vehicles/:id/repair-history` — `/vehicle-history` |
+| US04 | Tiếp nhận xe | ✅ | `POST /api/v1/repair-jobs` — `/reception` |
+| US05 | Tạo và quản lý phiếu sửa chữa | ✅ | `/api/v1/repair-jobs` — `/repair-jobs` |
+| US06 | Ghi nhận chẩn đoán | ✅ | `PUT /api/v1/repair-jobs/:id/diagnosis` — `/task-board` |
 | US07 | Phân công thợ máy | ✅ | `PUT /api/v1/repair-jobs/:id/assign` — `/repair-jobs` |
-| US08 | Thợ xem công việc được phân công | ✅ | `GET /api/v1/repair-jobs/my-jobs` — `/task-board` |
-| US16 | Đăng nhập (JWT) | ✅ | `POST /api/v1/auth/login` — `/login` |
-| US18 | Unit testing tự động + coverage gate | 🔄 | 105 test cases — `tests/unit/`; coverage business logic tối thiểu 60% (local và CI đạt, chờ review/merge) |
-| US19 | API integration & browser E2E | 🔄 | 18 integration tests và 2 Playwright E2E đạt local; CI đạt, chờ review/merge |
+| US08 | Xem việc được phân công | ✅ | `GET /api/v1/repair-jobs/my-jobs` — `/task-board` |
+| US09 | Cập nhật tiến độ sửa chữa | ✅ | `PUT /api/v1/repair-jobs/:id/status` — `/task-board` |
+| US10 | Quản lý phụ tùng | ✅ | CRUD `/api/v1/spare-parts` — `/inventory` |
+| US11 | Ghi nhận phụ tùng sử dụng, trừ kho | ✅ | `POST /api/v1/spare-parts/:id/deduct` — `/task-board` |
+| US12 | Theo dõi tồn kho thấp | ✅ | `GET /api/v1/spare-parts/low-stock` — `/inventory` |
+| US13 | Lập và gửi báo giá | ✅ | `POST /api/v1/estimates` — `/repair-jobs`, khách xem tại `/portal` |
+| US14 | Tính chi phí sửa chữa và VAT | ✅ | Tính trong service báo giá/hóa đơn; integration test nghiệp vụ |
+| US15 | Tạo hóa đơn và ghi nhận thanh toán | 🟡 | `POST /api/v1/invoices`, `PUT /api/v1/invoices/:id/pay`; chưa có màn hình hóa đơn riêng |
+| US16 | Đăng nhập bằng JWT | ✅ | `POST /api/v1/auth/login` — `/login` |
+| US17 | Quản lý vai trò và quyền | ✅ | `/api/v1/users` — `/admin/roles` |
+| US18 | Unit test và coverage gate | ✅ | `tests/unit/`; CI đặt ngưỡng coverage 60% cho business logic được chọn |
+| US19 | API integration và browser E2E | ✅ | 18 integration test và 2 Playwright E2E trong `tests/integration/`, `frontend/e2e/`; chạy qua GitHub Actions |
+| US20 | CI/CD và triển khai | 🟡 | GitHub Actions và Docker Compose đã có; chưa có cấu hình/URL triển khai public |
 
 ---
 
@@ -84,12 +96,17 @@ Tuần này tập trung vào coverage, kiểm thử API và E2E trình duyệt c
 
 ```
 .
+├── .github/
+│   └── workflows/ci.yml       # Lint/build, unit, coverage, integration, E2E
 ├── api/
 │   └── openapi.yaml            # Hợp đồng API OpenAPI 3.1
 ├── backend/
 │   └── src/
 │       ├── config/
-│       │   └── db.js               # PostgreSQL connection pool
+│       │   ├── db.js               # PostgreSQL connection pool
+│       │   └── env.js              # Nạp và kiểm tra biến môi trường
+│       ├── scripts/
+│       │   └── setupDb.js           # Khởi tạo role/database và migrations
 │       ├── controllers/            # Nhận request → gọi service → trả response
 │       │   ├── auth.controller.js
 │       │   ├── customer.controller.js
@@ -98,6 +115,7 @@ Tuần này tập trung vào coverage, kiểm thử API và E2E trình duyệt c
 │       │   ├── repairJob.controller.js
 │       │   ├── service.controller.js
 │       │   ├── sparePart.controller.js
+│       │   ├── user.controller.js
 │       │   └── vehicle.controller.js
 │       ├── middleware/
 │       │   ├── auth.js             # Xác thực JWT
@@ -113,6 +131,7 @@ Tuần này tập trung vào coverage, kiểm thử API và E2E trình duyệt c
 │       │   ├── repairJob.routes.js
 │       │   ├── service.routes.js
 │       │   ├── sparePart.routes.js
+│       │   ├── user.routes.js
 │       │   └── vehicle.routes.js
 │       ├── services/               # Business logic + SQL thuần
 │       │   ├── auth.service.js
@@ -122,13 +141,14 @@ Tuần này tập trung vào coverage, kiểm thử API và E2E trình duyệt c
 │       │   ├── repairJob.service.js
 │       │   ├── service.service.js
 │       │   ├── sparePart.service.js
+│       │   ├── user.service.js
 │       │   └── vehicle.service.js
 │       ├── utils/
 │       │   ├── pricing.js          # Tính giá thuần (estimate + VAT + kho)
 │       │   └── workflow.js         # State machine & validation (US04, US06, US07, US08)
 │       └── server.js
 ├── database/
-│   ├── migrations/                 # 001 → 015, chạy tuần tự khi khởi tạo DB
+│   ├── migrations/                 # 001 → 019, chạy tuần tự khi khởi tạo DB
 │   │   ├── 001_init.sql            # Schema người dùng
 │   │   ├── 002_customers_vehicles.sql
 │   │   ├── 003_repair_jobs.sql
@@ -143,14 +163,18 @@ Tuần này tập trung vào coverage, kiểm thử API và E2E trình duyệt c
 │   │   ├── 012_payments.sql
 │   │   ├── 013_repair_workflow.sql
 │   │   ├── 014_create_repair_job_function.sql
-│   │   └── 015_seed_initial_services.sql  # 5 dịch vụ mặc định
+│   │   ├── 015_seed_initial_services.sql  # 5 dịch vụ mặc định
+│   │   ├── 016_repair_workflow_procedures_triggers.sql
+│   │   ├── 017_add_customer_address.sql
+│   │   ├── 018_add_vehicle_odometer.sql
+│   │   └── 019_fix_mechanic_reassignment.sql
 │   ├── seeds/
 │   │   ├── 001_customers_vehicles.sql
 │   │   └── 002_full_demo_data.sql  # Demo đầy đủ với 3 xe, 3 phiếu, phụ tùng, hóa đơn
 │   └── queries/
 │       └── 001_check_customers_vehicles.sql
 ├── frontend/
-│   └── src/
+│   ├── src/
 │       ├── components/
 │       │   ├── common/
 │       │   │   └── StatusBadge.jsx # Badge trạng thái (tiếng Việt có dấu)
@@ -173,23 +197,31 @@ Tuần này tập trung vào coverage, kiểm thử API và E2E trình duyệt c
 │       │   │   └── StockWarningPage.jsx
 │       │   ├── mechanic/
 │       │   │   ├── TaskBoardPage.jsx      # Bảng công việc thợ máy (US08)
-│       │   │   └── ProgressPage.jsx
+│       │   │   └── ProgressPage.jsx       # Trang cũ, không được định tuyến
 │       │   └── reception/
 │       │       ├── ReceptionPage.jsx      # Tiếp nhận xe mới (US04)
 │       │       ├── RepairJobsPage.jsx     # Danh sách phiếu + phân công (US07)
+│       │       ├── EstimateModal.jsx      # Lập báo giá từ phiếu sửa chữa
 │       │       ├── VehicleHistoryPage.jsx # Lịch sử sửa chữa xe (US03)
-│       │       ├── CustomersPage.jsx      # Quản lý KH & xe (US01, US02)
-│       │       └── EstimatePage.jsx
+│       │       ├── CustomersPage.jsx      # Quản lý khách hàng (US01)
+│       │       ├── VehiclesPage.jsx       # Quản lý phương tiện (US02)
+│       │       └── EstimatePage.jsx       # Trang mẫu cũ, không được định tuyến
 │       ├── routes/
 │       │   ├── AppRouter.jsx
 │       │   └── ProtectedRoute.jsx
 │       └── services/
 │           └── api.js                     # Axios instance + interceptors JWT
+│   ├── e2e/
+│   │   └── role-management.spec.js       # Browser E2E bằng Playwright
+│   └── playwright.config.js
 ├── tests/
 │   ├── helpers/
 │   │   ├── roleManagementFixtures.js # Fixtures API/E2E phân quyền
 │   │   └── testEnv.js                # Bảo vệ test khỏi chạy nhầm database demo
 │   ├── unit/
+│   │   ├── buoi9-auth-middleware.test.js
+│   │   ├── buoi9-config-env.test.js
+│   │   ├── buoi9-error-handler.test.js
 │   │   ├── rbac.test.js              # Kiểm tra middleware xác thực và phân quyền
 │   │   ├── user-service.test.js      # Kiểm tra quản lý role và người dùng
 │   │   ├── pricing.test.js           # Giá dịch vụ, VAT và trừ kho
@@ -199,16 +231,13 @@ Tuần này tập trung vào coverage, kiểm thử API và E2E trình duyệt c
 │       ├── repair-workflow.test.js
 │       ├── user-role-management.test.js # API quản lý role, JWT, quyền truy cập đồng thời
 │       └── vehicle-history.test.js
-├── frontend/
-│   ├── e2e/role-management.spec.js   # Hai luồng browser E2E bằng Playwright
-│   └── playwright.config.js
 ├── docs/
 │   ├── 01-overview.md
 │   ├── requirements.md            # 20 User Stories, Gherkin AC, ma trận RBAC
 │   ├── backlog.md                 # Story points, gán sprint
 │   ├── sprint-plan.md             # Lộ trình 8 tuần
 │   ├── definition-of-done.md
-│   ├── erd.md                     # ERD 14 bảng
+│   ├── erd.md                     # ERD cơ sở dữ liệu
 │   ├── PROJECT_MEMORY.md          # Nhật ký quyết định kỹ thuật (cập nhật liên tục)
 │   └── diagrams/                  # Use Case, Class, Sequence, Activity, State Machine
 ├── chay_backend.bat               # Script khởi động backend nhanh (Windows)
@@ -216,7 +245,7 @@ Tuần này tập trung vào coverage, kiểm thử API và E2E trình duyệt c
 ├── khoi_tao_database.bat          # Script tạo database + seed data (Windows)
 ├── docker-compose.yml
 ├── .env.example
-└── package.json                   # Root: chạy unit test từ gốc project
+└── package.json                   # Root: lệnh unit/integration test và chạy dev
 ```
 
 ---
@@ -264,6 +293,7 @@ Quy tắc an toàn:
 # Unit tests và API integration tests (chạy từ thư mục gốc)
 npm test
 npm run test:integration
+npm run test:all
 
 # Coverage business logic (chạy từ thư mục gốc)
 npm run test:coverage --prefix backend
@@ -314,22 +344,28 @@ npm run test:e2e --prefix frontend
 | POST | `/api/v1/auth/register` | — | Đăng ký tài khoản khách; nối hồ sơ có sẵn khi email và số điện thoại cùng khớp |
 | GET | `/api/v1/users` | admin | Danh sách người dùng, chỉ trả các trường công khai |
 | PATCH | `/api/v1/users/:id/role` | admin | Đổi role; chặn tự hạ quyền và hạ quyền admin cuối cùng |
-| GET | `/api/v1/customers` | receptionist, admin | Danh sách khách hàng |
-| GET | `/api/v1/vehicles` | receptionist, admin | Tìm kiếm xe |
-| GET | `/api/v1/vehicles/:id/repair-history` | receptionist, manager | Lịch sử sửa chữa xe (US03) |
-| POST | `/api/v1/repair-jobs` | receptionist | Tạo phiếu tiếp nhận (US04) |
-| GET | `/api/v1/repair-jobs` | receptionist, manager | Danh sách phiếu sửa |
-| GET | `/api/v1/repair-jobs/my-jobs` | mechanic | Công việc của thợ (US08) |
-| PUT | `/api/v1/repair-jobs/:id/assign` | manager, receptionist | Phân công thợ (US07) |
-| PUT | `/api/v1/repair-jobs/:id/status` | receptionist, manager, mechanic | Cập nhật trạng thái |
-| DELETE | `/api/v1/repair-jobs/:id` | receptionist, manager, admin | Xóa phiếu đủ điều kiện; giữ lại phiếu có dữ liệu kho/tài chính hoặc đã được duyệt |
+| GET/POST/PUT/DELETE | `/api/v1/customers` | receptionist, admin (ghi); manager cũng được xem | Tra cứu và quản lý hồ sơ khách hàng |
+| GET/POST/PUT/DELETE | `/api/v1/vehicles` | receptionist, admin (ghi); manager cũng được xem | Tra cứu và quản lý phương tiện |
+| GET | `/api/v1/vehicles/:id/repair-history` | customer (xe thuộc hồ sơ), receptionist, manager, admin | Lịch sử sửa chữa xe (US03) |
+| POST | `/api/v1/repair-jobs` | receptionist | Tiếp nhận xe, tạo phiếu sửa (US04–05) |
+| GET | `/api/v1/repair-jobs` | receptionist, manager, admin | Danh sách phiếu sửa chữa |
+| GET | `/api/v1/repair-jobs/my-jobs` | mechanic | Công việc được phân công (US08) |
+| PUT | `/api/v1/repair-jobs/:id/assign` | service_manager, receptionist | Phân công thợ (US07) |
 | PUT | `/api/v1/repair-jobs/:id/diagnosis` | mechanic | Ghi chẩn đoán (US06) |
-| GET | `/api/v1/spare-parts` | người dùng đã xác thực | Danh sách phụ tùng kho; quản lý dịch vụ được quyền xem |
+| PUT | `/api/v1/repair-jobs/:id/status` | receptionist, manager, mechanic, admin | Cập nhật tiến độ theo state machine (US09) |
+| DELETE | `/api/v1/repair-jobs/:id` | receptionist, manager, admin | Xóa phiếu đủ điều kiện; bảo vệ dữ liệu kho/tài chính |
+| GET/POST/PUT | `/api/v1/spare-parts` | người dùng đã xác thực (xem); warehouse, admin (ghi) | Tra cứu và quản lý phụ tùng (US10) |
+| GET | `/api/v1/spare-parts/low-stock` | warehouse, manager, admin | Danh sách tồn kho thấp (US12) |
 | POST | `/api/v1/spare-parts/:id/import` | warehouse, admin | Nhập hàng vào kho |
+| POST | `/api/v1/spare-parts/:id/deduct` | mechanic, warehouse, admin | Ghi nhận phụ tùng sử dụng và trừ kho (US11) |
+| POST | `/api/v1/estimates` | receptionist | Lập báo giá và tính tổng chi phí (US13–14) |
 | GET | `/api/v1/estimates/my` | customer | Báo giá thuộc hồ sơ khách đang đăng nhập |
 | PUT | `/api/v1/estimates/:id/approve` | customer sở hữu báo giá | Đồng ý báo giá, chuyển phiếu sang `approved` |
 | PUT | `/api/v1/estimates/:id/reject` | customer sở hữu báo giá | Từ chối báo giá và hủy phiếu |
-| GET | `/api/v1/services` | all | Danh mục dịch vụ sửa chữa |
+| POST | `/api/v1/invoices` | receptionist | Tạo hóa đơn từ phiếu hoàn tất (US15) |
+| GET | `/api/v1/invoices/:id` | customer sở hữu hóa đơn, receptionist, manager, admin | Xem chi tiết hóa đơn |
+| PUT | `/api/v1/invoices/:id/pay` | receptionist, admin | Ghi nhận thanh toán hóa đơn |
+| GET | `/api/v1/services` | người dùng đã xác thực | Danh mục dịch vụ sửa chữa |
 | GET | `/` | — | Trạng thái API; health check chi tiết ở `/api/health` |
 | GET | `/api/health` | — | Health check |
 
