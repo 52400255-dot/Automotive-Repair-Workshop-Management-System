@@ -19,7 +19,7 @@ export default function LandingHeader() {
           <span className="landing-brand-mark" aria-hidden="true">G</span>
           <span className="landing-brand-copy">
             <strong>Garage Workshop</strong>
-            <small>CHĂM XE CHUẨN MỰC</small>
+            <small>MOTOR SERVICE SYSTEM</small>
           </span>
         </Link>
 

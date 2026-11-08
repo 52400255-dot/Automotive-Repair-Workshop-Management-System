@@ -3,7 +3,6 @@
  * Mỗi role được điều hướng tới đúng trang việc của mình sau khi đăng nhập.
  */
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import ProtectedRoute from './ProtectedRoute';
 import Layout from '../components/layout/Layout';
 
@@ -19,13 +18,10 @@ import InventoryPage from '../pages/inventory/InventoryPage';
 import StatusPortalPage from '../pages/customer/StatusPortalPage';
 import RoleManagementPage from '../pages/admin/RoleManagementPage';
 import LandingPage from '../pages/LandingPage';
-
-/** Sau khi đăng nhập, customer vào Portal, các role khác vào Dashboard */
-function Home() {
-  const { user } = useAuth();
-  if (user?.role === 'customer') return <Navigate to="/portal" replace />;
-  return <DashboardPage />;
-}
+import ProfilePage from '../pages/ProfilePage';
+import ShiftManagementPage from '../pages/cashier/ShiftManagementPage';
+import CashFlowHistoryPage from '../pages/admin/CashFlowHistoryPage';
+import AppointmentsPage from '../pages/reception/AppointmentsPage';
 
 export default function AppRouter() {
   return (
@@ -35,9 +31,13 @@ export default function AppRouter() {
         <Route path="/" element={<LandingPage />} />
 
         <Route element={<Layout />}>
+          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/shifts" element={<ProtectedRoute roles={['receptionist', 'service_manager', 'admin']}><ShiftManagementPage /></ProtectedRoute>} />
+          <Route path="/cash-flow" element={<ProtectedRoute roles={['service_manager', 'admin']}><CashFlowHistoryPage /></ProtectedRoute>} />
+          <Route path="/appointments" element={<ProtectedRoute roles={['receptionist', 'service_manager', 'admin']}><AppointmentsPage /></ProtectedRoute>} />
           <Route path="/dashboard" element={
-            <ProtectedRoute roles={['receptionist', 'service_manager', 'mechanic', 'warehouse_staff', 'admin']}>
-              <Home />
+            <ProtectedRoute roles={['customer', 'receptionist', 'service_manager', 'mechanic', 'warehouse_staff', 'admin']}>
+              <DashboardPage />
             </ProtectedRoute>
           } />
           <Route path="/reception" element={

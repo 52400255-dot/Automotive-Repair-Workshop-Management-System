@@ -10,5 +10,7 @@ const { authenticateToken } = require('../middleware/auth');
 router.post('/login', controller.login);
 router.post('/register', controller.register);
 router.get('/me', authenticateToken, controller.me);
+router.patch('/me', authenticateToken, controller.updateMe);
+router.post('/change-password', authenticateToken, controller.changePassword);
 
 module.exports = router;

@@ -4,13 +4,16 @@
  */
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import StatusBadge from '../../components/common/StatusBadge';
 import Plate from '../../components/common/Plate';
 import RepairOrderCode from '../../components/common/RepairOrderCode';
 import Modal from '../../components/common/Modal';
 import EstimateModal from './EstimateModal';
+import PaymentCheckoutModal from './PaymentCheckoutModal';
 
 export default function RepairJobsPage() {
+  const { user } = useAuth();
   const [jobs, setJobs] = useState([]);
   const [mechanics, setMechanics] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
@@ -25,6 +28,7 @@ export default function RepairJobsPage() {
   const [estimateJob, setEstimateJob] = useState(null);
   const [deleteJob, setDeleteJob] = useState(null);
   const [deletingJob, setDeletingJob] = useState(false);
+  const [paymentJob, setPaymentJob] = useState(null);
 
   // Tải danh sách phiếu sửa chữa
   useEffect(() => {
@@ -124,6 +128,7 @@ export default function RepairJobsPage() {
   const pendingCount = jobs.filter((job) => job.status === 'pending').length;
   const activeCount = jobs.filter((job) => ['diagnosing', 'approved', 'in_repair'].includes(job.status)).length;
   const estimatedCount = jobs.filter((job) => job.status === 'estimated').length;
+  const canCollectPayment = ['receptionist', 'admin'].includes(user?.role);
   return (
     <div className="repair-jobs-page">
       <div className="page-header repair-jobs-header">
@@ -210,7 +215,11 @@ export default function RepairJobsPage() {
                       {['pending', 'diagnosing', 'estimated', 'cancelled'].includes(j.status) && (
                         <button type="button" className="btn btn-danger" onClick={() => setDeleteJob(j)}>Xóa phiếu</button>
                       )}
-                      {!['pending', 'diagnosing', 'estimated', 'cancelled'].includes(j.status) && <span className="queue-action-muted">Đang theo dõi</span>}
+                      {j.status === 'completed' && canCollectPayment && (j.invoice_status === 'paid'
+                        ? <span className="badge badge-completed">Đã thanh toán</span>
+                        : <button type="button" className="btn btn-primary" onClick={() => setPaymentJob(j)}>{j.invoice_status === 'issued' ? 'Thu tiền' : 'Xuất HĐ / Thu tiền'}</button>)}
+                      {j.status === 'completed' && !canCollectPayment && <span className={j.invoice_status === 'paid' ? 'badge badge-completed' : 'queue-action-muted'}>{j.invoice_status === 'paid' ? 'Đã thanh toán' : j.invoice_status === 'issued' ? 'Chờ thu tiền' : 'Chưa xuất hóa đơn'}</span>}
+                      {!['pending', 'diagnosing', 'estimated', 'cancelled', 'completed'].includes(j.status) && <span className="queue-action-muted">Đang theo dõi</span>}
                     </div>
                   </td>
                 </tr>
@@ -277,6 +286,17 @@ export default function RepairJobsPage() {
           job={estimateJob}
           onClose={() => setEstimateJob(null)}
           onCreated={handleEstimateCreated}
+        />
+      )}
+      {paymentJob && (
+        <PaymentCheckoutModal
+          job={paymentJob}
+          onClose={() => setPaymentJob(null)}
+          onSuccess={(message) => {
+            setPaymentJob(null);
+            setNotice({ text: message, type: 'success' });
+            setReload((current) => current + 1);
+          }}
         />
       )}
       {deleteJob && (

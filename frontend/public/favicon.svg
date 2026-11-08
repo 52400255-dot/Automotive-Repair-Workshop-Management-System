@@ -1,5 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#2196F3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.84-.99L16 11l-2.7-3.6a1 1 0 0 0-.8-.4H5.24a2 2 0 0 0-1.8 1.1l-.8 1.63A6 6 0 0 0 2 12.42V16h2"/>
-  <circle cx="6.5" cy="16.5" r="2.5"/>
-  <circle cx="16.5" cy="16.5" r="2.5"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Xe dua Formula do">
+  <rect width="64" height="64" rx="12" fill="#0b0c0f"/>
+  <path d="M5 35h10l7-6h13l7 4h11l6 5-2 5H7l-2-3z" fill="#ed1c2b"/>
+  <path d="M18 28h21l-4-5H24zM4 33h12v3H4zM47 29h13v3H47z" fill="#ed1c2b"/>
+  <path d="M24 31h11l4 4H20z" fill="#f3f3f4"/>
+  <path d="M42 27h10v2H42zM6 42h51v2H6z" fill="#f3f3f4"/>
+  <circle cx="17" cy="43" r="6" fill="#0b0c0f" stroke="#ed1c2b" stroke-width="3"/>
+  <circle cx="47" cy="43" r="6" fill="#0b0c0f" stroke="#ed1c2b" stroke-width="3"/>
 </svg>

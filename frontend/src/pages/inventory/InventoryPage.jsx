@@ -12,6 +12,7 @@ import Modal from '../../components/common/Modal';
 
 // Vai trò được thêm/sửa/nhập kho/ghi nhận sử dụng (khớp phân quyền backend)
 const MANAGE_ROLES = ['warehouse_staff', 'admin'];
+const IMPORT_ROLES = ['warehouse_staff', 'service_manager', 'admin'];
 // Vai trò được gọi GET /spare-parts/low-stock (các vai trò khác sẽ bị 403 → tự đăng xuất)
 const LOW_STOCK_ROLES = ['warehouse_staff', 'service_manager', 'admin'];
 
@@ -331,7 +332,7 @@ function ImportModal({ part, onClose, onSaved }) {
 
 /* ===================== Form ghi nhận sử dụng phụ tùng (US11) ===================== */
 
-function UsageForm({ parts, onDone }) {
+function UsageForm({ parts, onDone, jobs = null, jobsLoadError = '', jobsLoading = false }) {
   const [form, setForm] = useState({ repairJobId: '', partId: '', quantity: '1' });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -342,6 +343,10 @@ function UsageForm({ parts, onDone }) {
 
     if (!isPositiveInt(form.repairJobId)) {
       setError('Mã phiếu sửa chữa phải là số nguyên dương.');
+      return;
+    }
+    if (jobs && !jobs.some((job) => String(job.id) === String(form.repairJobId))) {
+      setError('Chỉ có thể ghi nhận phụ tùng cho phiếu đang sửa chữa.');
       return;
     }
     if (!form.partId) {
@@ -407,14 +412,22 @@ function UsageForm({ parts, onDone }) {
       >
         <div className="form-group">
           <label htmlFor="usage-repair-job">Mã phiếu sửa chữa</label>
-          <input
-            id="usage-repair-job"
-            className="form-control"
-            inputMode="numeric"
-            placeholder="Ví dụ: 1"
-            value={form.repairJobId}
-            onChange={(e) => setForm({ ...form, repairJobId: e.target.value })}
-          />
+          {jobs ? (
+            <select id="usage-repair-job" className="form-control" value={form.repairJobId} onChange={(e) => setForm({ ...form, repairJobId: e.target.value })} disabled={jobsLoading || !!jobsLoadError || !jobs.length} required>
+              <option value="">{jobsLoading ? 'Đang tải phiếu...' : jobsLoadError ? 'Không tải được phiếu' : jobs.length ? '-- Chọn phiếu đang sửa chữa --' : 'Không có phiếu đang sửa chữa'}</option>
+              {jobs.map((job) => <option key={job.id} value={job.id}>#{job.id} · {job.license_plate} · {job.brand} {job.model}</option>)}
+            </select>
+          ) : (
+            <input
+              id="usage-repair-job"
+              className="form-control"
+              inputMode="numeric"
+              placeholder="Ví dụ: 1"
+              value={form.repairJobId}
+              onChange={(e) => setForm({ ...form, repairJobId: e.target.value })}
+            />
+          )}
+          {jobsLoadError && <div className="form-hint form-hint-error">{jobsLoadError}</div>}
         </div>
         <div className="form-group">
           <label htmlFor="usage-part">Phụ tùng</label>
@@ -443,7 +456,7 @@ function UsageForm({ parts, onDone }) {
             onChange={(e) => setForm({ ...form, quantity: e.target.value })}
           />
         </div>
-        <button type="submit" className="btn btn-primary usage-submit" disabled={submitting}>
+        <button type="submit" className="btn btn-primary usage-submit" disabled={submitting || jobsLoading || (!!jobs && !jobs.length) || !!jobsLoadError}>
           {submitting ? 'Đang ghi nhận...' : 'Ghi nhận sử dụng'}
         </button>
       </form>
@@ -457,9 +470,14 @@ export default function InventoryPage() {
   const { user } = useAuth();
   const role = user?.role;
   const canManage = MANAGE_ROLES.includes(role);
+  const canImport = IMPORT_ROLES.includes(role);
+  const canShowActions = canManage || canImport;
   const canCallLowStock = LOW_STOCK_ROLES.includes(role);
 
   const [parts, setParts] = useState([]);
+  const [repairJobs, setRepairJobs] = useState([]);
+  const [jobsLoadError, setJobsLoadError] = useState('');
+  const [jobsLoading, setJobsLoading] = useState(false);
   const [lowParts, setLowParts] = useState([]);
   const [tab, setTab] = useState('all'); // 'all' | 'low'
   const [loading, setLoading] = useState(true);
@@ -476,6 +494,22 @@ export default function InventoryPage() {
         const all = await api.get('/spare-parts');
         if (!active) return;
         setParts(all.data.data || []);
+
+        if (role === 'admin') {
+          setJobsLoading(true);
+          try {
+            const inRepair = await api.get('/repair-jobs?status=in_repair');
+            if (!active) return;
+            setRepairJobs(inRepair.data.data || []);
+            setJobsLoadError('');
+          } catch (err) {
+            if (active) setJobsLoadError(errorText(err, 'Không tải được danh sách phiếu đang sửa chữa.'));
+          } finally {
+            if (active) setJobsLoading(false);
+          }
+        } else {
+          setJobsLoading(false);
+        }
 
         // Tab "Sắp hết hàng": gọi API low-stock (chỉ với vai trò được phép)
         if (tab === 'low' && canCallLowStock) {
@@ -495,7 +529,7 @@ export default function InventoryPage() {
     return () => {
       active = false;
     };
-  }, [reload, tab, canCallLowStock]);
+  }, [reload, tab, canCallLowStock, role]);
 
   function handleDone(message) {
     setModal(null);
@@ -506,7 +540,7 @@ export default function InventoryPage() {
   const allLow = parts.filter(isLow);
   const visibleParts = tab === 'low' ? (canCallLowStock ? lowParts : allLow) : parts;
   const existingCodes = parts.map((p) => String(p.part_code).toLowerCase());
-  const columnCount = canManage ? 8 : 7;
+  const columnCount = canShowActions ? 8 : 7;
 
   return (
     <div className="inventory-page">
@@ -554,7 +588,7 @@ export default function InventoryPage() {
       )}
 
       {/* Ghi nhận sử dụng phụ tùng (US11) */}
-      {canManage && <UsageForm parts={parts} onDone={handleDone} />}
+      {canManage && <UsageForm parts={parts} jobs={role === 'admin' ? repairJobs : null} jobsLoadError={role === 'admin' ? jobsLoadError : ''} jobsLoading={role === 'admin' && jobsLoading} onDone={handleDone} />}
 
       {/* Tab lọc (US12) */}
       <div className="filter-tabs" role="group" aria-label="Lọc phụ tùng">
@@ -594,7 +628,7 @@ export default function InventoryPage() {
                 <th>TỒN TỐI THIỂU</th>
                 <th>ĐƠN GIÁ</th>
                 <th>TRẠNG THÁI</th>
-                {canManage && <th>THAO TÁC</th>}
+                {canShowActions && <th>THAO TÁC</th>}
               </tr>
             </thead>
             <tbody>
@@ -611,21 +645,21 @@ export default function InventoryPage() {
                   <td>
                     <StockBadge part={p} />
                   </td>
-                  {canManage && (
+                  {canShowActions && (
                     <td>
                       <div className="action-buttons">
-                        <button
+                        {canManage && <button
                           className="btn btn-outline"
                           onClick={() => setModal({ type: 'edit', part: p })}
                         >
                           Sửa
-                        </button>
-                        <button
+                        </button>}
+                        {canImport && <button
                           className="btn btn-outline"
                           onClick={() => setModal({ type: 'import', part: p })}
                         >
                           Nhập kho
-                        </button>
+                        </button>}
                       </div>
                     </td>
                   )}

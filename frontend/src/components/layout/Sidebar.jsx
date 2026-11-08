@@ -14,7 +14,7 @@ const NAV_GROUPS = [
   {
     label: 'Tổng quan',
     items: [
-      { to: '/', label: 'Tổng quan xưởng', icon: 'dashboard', roles: ['receptionist', 'service_manager', 'mechanic', 'warehouse_staff', 'admin'] },
+      { to: '/dashboard', label: 'Tổng quan xưởng', icon: 'dashboard', roles: ['customer', 'receptionist', 'service_manager', 'mechanic', 'warehouse_staff', 'admin'] },
     ],
   },
   {
@@ -24,6 +24,7 @@ const NAV_GROUPS = [
       { to: '/repair-jobs', label: 'Phiếu sửa chữa', icon: 'repairs', roles: ['receptionist', 'service_manager', 'admin'] },
       { to: '/task-board', label: 'Bảng công việc', icon: 'tasks', roles: ['mechanic'] },
       { to: '/vehicle-history', label: 'Lịch sử sửa chữa', icon: 'history', roles: ['receptionist', 'service_manager', 'admin'] },
+      { to: '/appointments', label: 'Lịch hẹn tiếp nhận', icon: 'calendar', roles: ['receptionist', 'service_manager', 'admin'] },
     ],
   },
   {
@@ -46,6 +47,19 @@ const NAV_GROUPS = [
       { to: '/admin/roles', label: 'Vai trò & phân quyền', icon: 'customers', roles: ['admin'] },
     ],
   },
+  {
+    label: 'Tài chính',
+    items: [
+      { to: '/shifts', label: 'Quản lý ca & quỹ', icon: 'cash', roles: ['receptionist', 'service_manager', 'admin'] },
+      { to: '/cash-flow', label: 'Lịch sử & đối soát', icon: 'history', roles: ['service_manager', 'admin'] },
+    ],
+  },
+  {
+    label: 'Tài khoản',
+    items: [
+      { to: '/profile', label: 'Tài khoản của tôi', icon: 'profile', roles: ['customer', 'receptionist', 'service_manager', 'mechanic', 'warehouse_staff', 'admin'] },
+    ],
+  },
 ];
 
 function NavigationIcon({ name }) {
@@ -59,6 +73,9 @@ function NavigationIcon({ name }) {
     customers: <><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 5.5a3.5 3.5 0 0 1 0 6.8M18 14a5.5 5.5 0 0 1 3.5 5" /></>,
     vehicles: <><path d="m4 11 1.6-4.4A2.5 2.5 0 0 1 8 5h8a2.5 2.5 0 0 1 2.4 1.6L20 11v8h-2v-2H6v2H4v-8Z" /><path d="M4 11h16M7 14h.01M17 14h.01" /></>,
     portal: <><path d="M4 12h15M13 6l6 6-6 6" /><path d="M5 4h6M5 20h6" /></>,
+    profile: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
+    cash: <><rect x="2.5" y="5" width="19" height="14" rx="2" /><circle cx="12" cy="12" r="3" /><path d="M6 9h.01M18 15h.01" /></>,
+    calendar: <><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M7 2v4M17 2v4M3 9h18M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01" /></>,
   };
 
   return (
@@ -102,11 +119,11 @@ export default function Sidebar({ isOpen = false, onNavigate }) {
                 end={item.to === '/'}
                 className={({ isActive }) => `sidebar-link${isActive ? ' is-active' : ''}`}
                 onClick={onNavigate}
-                title={item.label}
-                aria-label={item.label}
+                title={user?.role === 'customer' && item.to === '/dashboard' ? 'Tổng quan dịch vụ' : item.label}
+                aria-label={user?.role === 'customer' && item.to === '/dashboard' ? 'Tổng quan dịch vụ' : item.label}
               >
                 <NavigationIcon name={item.icon} />
-                <span>{item.label}</span>
+                <span>{user?.role === 'customer' && item.to === '/dashboard' ? 'Tổng quan dịch vụ' : item.label}</span>
               </NavLink>
             ))}
           </div>

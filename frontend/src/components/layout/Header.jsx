@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const PAGE_CONTEXT = {
@@ -12,6 +12,10 @@ const PAGE_CONTEXT = {
   '/vehicles': ['Khách hàng & xe', 'Quản lý xe'],
   '/portal': ['Khách hàng & xe', 'Theo dõi sửa chữa'],
   '/admin/roles': ['Quản trị', 'Vai trò & phân quyền'],
+  '/profile': ['Tài khoản', 'Tài khoản của tôi'],
+  '/shifts': ['Tài chính', 'Quản lý ca & quỹ'],
+  '/cash-flow': ['Tài chính', 'Lịch sử & đối soát'],
+  '/appointments': ['Tiếp nhận & phiếu sửa chữa', 'Lịch hẹn tiếp nhận'],
 };
 
 export default function Header({ onMenuToggle, menuOpen = false }) {
@@ -47,13 +51,13 @@ export default function Header({ onMenuToggle, menuOpen = false }) {
         </div>
       </div>
       {user && (
-        <div className="user-menu" aria-label="Người dùng hiện tại">
+        <Link className="user-menu" to="/profile" aria-label="Xem tài khoản của tôi">
           <div className="user-avatar" aria-hidden="true">{initials}</div>
           <div className="user-meta">
             <span className="user-name">{user.fullName || user.email}</span>
             <span className="role-pill">Phiên làm việc</span>
           </div>
-        </div>
+        </Link>
       )}
     </header>
   );

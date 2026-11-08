@@ -2,7 +2,7 @@
  * AuthProvider — Component cung cấp phiên đăng nhập cho toàn ứng dụng.
  * (Context + hook nằm ở AuthContext.jsx)
  */
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import api from '../services/api';
 import { AuthContext } from './AuthContext';
 
@@ -29,8 +29,19 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
+  const updateUser = useCallback((profile) => {
+    const userData = {
+      id: profile.id,
+      fullName: profile.full_name,
+      email: profile.email,
+      role: profile.role,
+    };
+    localStorage.setItem('user', JSON.stringify(userData));
+    setUser(userData);
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, login, logout, updateUser, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

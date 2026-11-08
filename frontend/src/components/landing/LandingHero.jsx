@@ -11,11 +11,11 @@ export default function LandingHero() {
     <section className="landing-hero" aria-labelledby="landing-hero-title">
       <div className="landing-hero-inner">
         <div className="landing-hero-copy">
-          <p className="landing-eyebrow"><span /> VẬN HÀNH XƯỞNG, THEO MỘT CHUẨN MỰC MỚI</p>
-          <h1 id="landing-hero-title">Chăm xe tận tâm.<br /><em>Vận hành chỉn chu.</em></h1>
+          <p className="landing-eyebrow"><span /> 01 / HỆ THỐNG VẬN HÀNH XƯỞNG</p>
+          <h1 id="landing-hero-title">Chính xác từng thao tác.<br /><em>Tăng tốc mọi hành trình.</em></h1>
           <p className="landing-hero-description">
-            Mỗi chiếc xe là một lời gửi gắm. Garage Workshop giúp đội ngũ chăm sóc từng công đoạn —
-            từ lúc tiếp nhận đến ngày trao chìa khóa trở lại.
+            Từ tiếp nhận, chẩn đoán đến bàn giao — mọi công đoạn được kết nối trong một quy trình rõ ràng,
+            để đội ngũ vận hành đúng nhịp và khách hàng luôn nắm bắt tiến độ.
           </p>
           <div className="landing-hero-actions">
             <a className="landing-button landing-button-dark" href="#quy-trinh">
@@ -25,27 +25,22 @@ export default function LandingHero() {
           </div>
           <div className="landing-hero-note">
             <span className="landing-note-mark" aria-hidden="true">G</span>
-            <p><strong>Rõ ràng trong từng bước.</strong><br />An tâm trong từng lần bàn giao.</p>
+            <p><strong>Kỷ luật trong từng chặng.</strong><br />Sẵn sàng cho mọi hành trình.</p>
           </div>
         </div>
 
         <div className="landing-hero-visual">
-          <img
-            className="landing-hero-image"
-            src="/images/garage-hero.png"
-            alt="Không gian xưởng ô tô hiện đại, nơi người thợ kiểm tra chiếc xe trước khi sửa chữa"
-          />
           <div className="landing-image-shade" aria-hidden="true" />
           <div className="landing-image-label">
             <span className="landing-image-label-dot" />
-            <span>CHU ĐÁO TỪ LÚC TIẾP NHẬN</span>
+            <span>CHÍNH XÁC TỪ VẠCH XUẤT PHÁT</span>
           </div>
           <div className="landing-visual-card">
             <div className="landing-visual-card-top">
-              <span>TRẢI NGHIỆM DỊCH VỤ</span>
+              <span>WORKFLOW CONTROL / 04</span>
               <span className="landing-live-dot" aria-hidden="true" />
             </div>
-            <strong>Một hành trình<br />được chăm chút.</strong>
+            <strong>Một quy trình.<br />Không lỡ nhịp.</strong>
             <div className="landing-mini-steps" aria-hidden="true">
               <span className="is-complete" /><span className="is-complete" /><span /><span />
             </div>
@@ -57,7 +52,7 @@ export default function LandingHero() {
 
       <div className="landing-overview" aria-label="Tổng quan giải pháp">
         <div className="landing-overview-inner">
-          <p className="landing-overview-intro">Tỉ mỉ trong nghề.<br /><em>Rành mạch trong vận hành.</em></p>
+          <p className="landing-overview-intro">Kỷ luật trên từng chặng.<br /><em>Hiệu suất trong mọi quy trình.</em></p>
           {overview.map((item) => (
             <div className="landing-overview-item" key={item.value}>
               <strong>{item.value}</strong>

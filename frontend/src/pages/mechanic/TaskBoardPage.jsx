@@ -69,6 +69,9 @@ export default function TaskBoardPage() {
   // Modal phụ tùng (US11)
   const [partModal, setPartModal] = useState({ open: false, job: null });
   const [partsList, setPartsList] = useState([]);
+  const [partsLoading, setPartsLoading] = useState(false);
+  const [partsLoadError, setPartsLoadError] = useState('');
+  const [partsActionError, setPartsActionError] = useState('');
   const [selectedPartId, setSelectedPartId] = useState('');
   const [partQuantity, setPartQuantity] = useState(1);
   // Ghi nhận phụ tùng đã dùng trong phiên làm việc: { [jobId]: [{ partId, name, code, quantity }] }
@@ -192,12 +195,17 @@ export default function TaskBoardPage() {
     setPartModal({ open: true, job });
     setSelectedPartId('');
     setPartQuantity(1);
+    setPartsLoading(true);
+    setPartsLoadError('');
+    setPartsActionError('');
     try {
       const res = await api.get('/spare-parts');
       const data = res.data?.data ?? res.data ?? [];
       setPartsList(Array.isArray(data) ? data : []);
     } catch (err) {
-      showToast(err.response?.data?.message || 'Lỗi tải danh sách phụ tùng', 'error');
+      setPartsLoadError(err.response?.data?.message || 'Không tải được danh sách phụ tùng.');
+    } finally {
+      setPartsLoading(false);
     }
   }
 
@@ -217,6 +225,7 @@ export default function TaskBoardPage() {
     if (!selectedPart || qtyInvalid || overStock) return;
     const job = partModal.job;
     setSubmitting(true);
+    setPartsActionError('');
     try {
       await api.post(`/spare-parts/${selectedPart.id}/deduct`, {
         repairJobId: job.id,
@@ -226,14 +235,20 @@ export default function TaskBoardPage() {
         ...prev,
         [job.id]: [
           ...(prev[job.id] || []),
-          { partId: selectedPart.id, name: selectedPart.name, code: codeOf(selectedPart), quantity: qtyNum },
+          { partId: selectedPart.id, name: selectedPart.part_name || selectedPart.name, code: codeOf(selectedPart), quantity: qtyNum },
         ],
       }));
-      showToast(`✓ Đã ghi nhận ${qtyNum} x ${selectedPart.name} cho Phiếu #${job.id}!`, 'success');
+      showToast(`Đã ghi nhận ${qtyNum} x ${selectedPart.part_name || selectedPart.name} cho Phiếu #${job.id}.`, 'success');
       closePartModal();
       setReload((n) => n + 1);
     } catch (err) {
-      showToast(err.response?.data?.message || 'Lỗi khi trừ tồn kho phụ tùng', 'error');
+      setPartsActionError(err.response?.data?.message || 'Không ghi nhận được phụ tùng.');
+      if (err.response?.status === 409) {
+        try {
+          const response = await api.get('/spare-parts');
+          setPartsList(response.data?.data ?? []);
+        } catch { /* keep the current stock values and server error visible */ }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -564,19 +579,23 @@ export default function TaskBoardPage() {
             </div>
 
             <form onSubmit={handleDeductPartSubmit}>
+              {partsActionError && <div className="alert alert-error" role="alert">{partsActionError}</div>}
               <div className="form-group">
                 <label htmlFor="repair-part">Phụ tùng trong kho <em>(bắt buộc)</em></label>
+                {partsLoading && <p role="status">Đang tải danh sách phụ tùng...</p>}
+                {partsLoadError && <div className="alert alert-error" role="alert">{partsLoadError} <button type="button" className="text-link" onClick={() => openPartModal(partModal.job)}>Thử lại</button></div>}
                 <select
                   id="repair-part"
                   className="form-control"
                   value={selectedPartId}
                   onChange={(e) => setSelectedPartId(e.target.value)}
+                  disabled={partsLoading || !!partsLoadError}
                   required
                 >
                   <option value="">-- Chọn phụ tùng --</option>
                   {partsList.map((p) => (
                     <option key={p.id} value={p.id} disabled={Number(stockOf(p)) <= 0}>
-                      {p.name} {codeOf(p) ? `(${codeOf(p)})` : ''} — tồn: {stockOf(p)}
+                      {p.part_name || p.name} {codeOf(p) ? `(${codeOf(p)})` : ''} — tồn: {stockOf(p)}
                     </option>
                   ))}
                 </select>
@@ -604,7 +623,7 @@ export default function TaskBoardPage() {
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled={submitting || !selectedPart || qtyInvalid || overStock}
+                  disabled={submitting || partsLoading || !!partsLoadError || !selectedPart || qtyInvalid || overStock}
                 >
                   {submitting ? 'Đang ghi nhận...' : 'Xác nhận sử dụng'}
                 </button>

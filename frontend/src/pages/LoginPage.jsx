@@ -23,19 +23,8 @@ export default function LoginPage() {
       if (isRegistering) {
         await api.post('/auth/register', { fullName, email, password, phone });
       }
-      const userData = await login(email.trim(), password);
-      // Điều hướng theo vai trò người dùng
-      if (userData.role === 'customer') {
-        navigate('/portal');
-      } else if (userData.role === 'mechanic') {
-        navigate('/task-board');
-      } else if (userData.role === 'receptionist') {
-        navigate('/reception');
-      } else if (userData.role === 'warehouse_staff') {
-        navigate('/inventory');
-      } else {
-        navigate('/dashboard');
-      }
+      await login(email.trim(), password);
+      navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Email hoặc mật khẩu không chính xác (mặc định demo: 123456)');
     } finally {
