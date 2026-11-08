@@ -34,7 +34,7 @@ export default function LoginPage() {
       } else if (userData.role === 'warehouse_staff') {
         navigate('/inventory');
       } else {
-        navigate('/');
+        navigate('/dashboard');
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Email hoặc mật khẩu không chính xác (mặc định demo: 123456)');
@@ -54,39 +54,46 @@ export default function LoginPage() {
         <div className="login-brand">
           <div className="brand-mark" aria-hidden="true">G</div>
           <div>
-            <strong>Garage Workshop</strong>
-            <span>AUTOMOTIVE REPAIR MANAGEMENT</span>
+          <strong>Garage Workshop</strong>
+          <span>QUẢN LÝ XƯỞNG SỬA CHỮA Ô TÔ</span>
           </div>
         </div>
 
         <div className="login-story">
-          <p className="eyebrow">Một quy trình, rõ từng bước</p>
-          <h1>Vận hành xưởng sửa chữa liền mạch hơn.</h1>
-          <p>
-            Từ lúc xe vào xưởng đến khi hoàn tất sửa chữa, thông tin được tập trung
-            theo từng khách hàng, phương tiện và phiếu công việc.
-          </p>
+          <h1>Xe của bạn – Tận tâm từng công đoạn.</h1>
+          <p>Theo dõi minh bạch, an tâm bàn giao.</p>
 
           <ol className="workflow-list">
             <li>
               <span className="workflow-number">01</span>
               <span className="workflow-copy">
                 <strong>Tiếp nhận xe</strong>
-                <small>Lưu thông tin xe và yêu cầu sửa chữa</small>
+                <small>Ghi nhận thông tin xe và mong muốn sửa chữa của bạn.</small>
+                <em>Bạn nhận · Phiếu tiếp nhận</em>
               </span>
             </li>
             <li>
               <span className="workflow-number">02</span>
               <span className="workflow-copy">
-                <strong>Chẩn đoán & báo giá</strong>
-                <small>Phân công thợ và thống nhất hạng mục</small>
+                <strong>Chẩn đoán &amp; báo giá</strong>
+                <small>Thợ kiểm tra xe, cùng bạn thống nhất hạng mục và chi phí.</small>
+                <em>Bạn nhận · Báo giá chi tiết</em>
               </span>
             </li>
             <li>
               <span className="workflow-number">03</span>
               <span className="workflow-copy">
-                <strong>Sửa chữa & bàn giao</strong>
-                <small>Theo dõi phụ tùng, tiến độ và thanh toán</small>
+                <strong>Sửa chữa</strong>
+                <small>Theo dõi phụ tùng và tiến độ từng phiếu sửa chữa.</small>
+                <em>Bạn biết · Xe đang ở bước nào</em>
+              </span>
+            </li>
+            <li>
+              <span className="workflow-number">04</span>
+              <span className="workflow-copy">
+                <strong>Bàn giao</strong>
+                <small>Hoàn tất phiếu, thanh toán và nhận lại xe.</small>
+                <em>Bạn nhận · Xe và chứng từ thanh toán</em>
               </span>
             </li>
           </ol>

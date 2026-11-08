@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import Modal from '../../components/common/Modal';
 
 // Vai trò được thêm/sửa/nhập kho/ghi nhận sử dụng (khớp phân quyền backend)
 const MANAGE_ROLES = ['warehouse_staff', 'admin'];
@@ -40,10 +41,10 @@ function errorText(err, fallback) {
 
 /* ===================== Thành phần nhỏ ===================== */
 
-function Field({ label, error, children }) {
+function Field({ label, error, htmlFor, children }) {
   return (
     <div className="form-group">
-      <label>{label}</label>
+      <label htmlFor={htmlFor}>{label}</label>
       {children}
       {error && (
         <div className="form-hint form-hint-error">{error}</div>
@@ -67,7 +68,7 @@ function StockBadge({ part }) {
       </span>
     );
   }
-  return <span className="badge badge-completed">Đủ hàng</span>;
+  return <span className="badge badge-stock-ok">Đủ hàng</span>;
 }
 
 /* ===================== Modal Thêm mới / Chỉnh sửa (US10) ===================== */
@@ -167,20 +168,20 @@ function PartModal({ mode, part, existingCodes, onClose, onSaved }) {
   }
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-panel" role="dialog" aria-modal="true">
+    <Modal onClose={() => { if (!submitting) onClose(); }} labelledBy="part-modal-title">
         <div className="modal-header">
-          <h2>{isEdit ? 'Chỉnh sửa phụ tùng' : 'Thêm mới phụ tùng'}</h2>
-          <button type="button" className="btn btn-outline" onClick={onClose} disabled={submitting}>
-            ✕
+          <h2 id="part-modal-title">{isEdit ? 'Chỉnh sửa phụ tùng' : 'Thêm mới phụ tùng'}</h2>
+          <button type="button" className="btn btn-outline" onClick={onClose} disabled={submitting} aria-label="Đóng">
+            ×
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} noValidate>
+        <form className="inventory-part-form" onSubmit={handleSubmit} noValidate>
           {serverError && <div className="alert alert-error">{serverError}</div>}
 
-          <Field label="Mã phụ tùng" error={errors.partCode}>
+          <Field label="Mã phụ tùng" error={errors.partCode} htmlFor="part-code">
             <input
+              id="part-code"
               className="form-control"
               value={form.partCode}
               onChange={set('partCode')}
@@ -189,8 +190,9 @@ function PartModal({ mode, part, existingCodes, onClose, onSaved }) {
             />
           </Field>
 
-          <Field label="Tên phụ tùng" error={errors.partName}>
+          <Field label="Tên phụ tùng" error={errors.partName} htmlFor="part-name">
             <input
+              id="part-name"
               className="form-control"
               value={form.partName}
               onChange={set('partName')}
@@ -198,8 +200,9 @@ function PartModal({ mode, part, existingCodes, onClose, onSaved }) {
             />
           </Field>
 
-          <Field label="Đơn vị tính" error={errors.unit}>
+          <Field label="Đơn vị tính" error={errors.unit} htmlFor="part-unit">
             <input
+              id="part-unit"
               className="form-control"
               value={form.unit}
               onChange={set('unit')}
@@ -211,8 +214,10 @@ function PartModal({ mode, part, existingCodes, onClose, onSaved }) {
           <Field
             label={isEdit ? 'Tồn kho hiện tại (đổi bằng chức năng Nhập kho)' : 'Số lượng ban đầu'}
             error={errors.stockQuantity}
+            htmlFor="part-stock-quantity"
           >
             <input
+              id="part-stock-quantity"
               className="form-control"
               inputMode="numeric"
               value={form.stockQuantity}
@@ -221,8 +226,9 @@ function PartModal({ mode, part, existingCodes, onClose, onSaved }) {
             />
           </Field>
 
-          <Field label="Đơn giá (đ)" error={errors.unitPrice}>
+          <Field label="Đơn giá (đ)" error={errors.unitPrice} htmlFor="part-unit-price">
             <input
+              id="part-unit-price"
               className="form-control"
               inputMode="decimal"
               value={form.unitPrice}
@@ -231,8 +237,9 @@ function PartModal({ mode, part, existingCodes, onClose, onSaved }) {
             />
           </Field>
 
-          <Field label="Ngưỡng tồn tối thiểu" error={errors.minStock}>
+          <Field label="Ngưỡng tồn tối thiểu" error={errors.minStock} htmlFor="part-min-stock">
             <input
+              id="part-min-stock"
               className="form-control"
               inputMode="numeric"
               value={form.minStock}
@@ -249,8 +256,7 @@ function PartModal({ mode, part, existingCodes, onClose, onSaved }) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -280,12 +286,11 @@ function ImportModal({ part, onClose, onSaved }) {
   }
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-panel" role="dialog" aria-modal="true">
+    <Modal onClose={() => { if (!submitting) onClose(); }} labelledBy="import-modal-title">
         <div className="modal-header">
-          <h2>Nhập hàng vào kho</h2>
-          <button type="button" className="btn btn-outline" onClick={onClose} disabled={submitting}>
-            ✕
+          <h2 id="import-modal-title">Nhập hàng vào kho</h2>
+          <button type="button" className="btn btn-outline" onClick={onClose} disabled={submitting} aria-label="Đóng">
+            ×
           </button>
         </div>
 
@@ -299,8 +304,9 @@ function ImportModal({ part, onClose, onSaved }) {
         <form onSubmit={handleSubmit} noValidate>
           {error && <div className="alert alert-error">{error}</div>}
 
-          <Field label="Số lượng nhập">
+          <Field label="Số lượng nhập" htmlFor="import-quantity">
             <input
+              id="import-quantity"
               className="form-control"
               inputMode="numeric"
               value={quantity}
@@ -319,8 +325,7 @@ function ImportModal({ part, onClose, onSaved }) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }
 

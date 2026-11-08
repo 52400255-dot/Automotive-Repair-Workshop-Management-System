@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
+import Plate from '../../components/common/Plate';
+import Modal from '../../components/common/Modal';
 
 const emptyVehicleForm = {
   customerId: '',
@@ -423,6 +425,7 @@ export default function VehiclesPage() {
           <input
             type="search"
             className="form-control"
+            aria-label="Tìm xe theo biển số hoặc tên chủ sở hữu"
             placeholder="Tìm theo biển số hoặc tên chủ sở hữu..."
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
@@ -455,7 +458,7 @@ export default function VehiclesPage() {
                 <tr key={vehicle.id}>
                   <td>#{vehicle.id}</td>
                   <td>
-                    <strong>{vehicle.license_plate}</strong>
+                    <Plate value={vehicle.license_plate} />
                   </td>
                   <td>{vehicle.brand}</td>
                   <td>{vehicle.model}</td>
@@ -507,13 +510,7 @@ export default function VehiclesPage() {
       </div>
 
       {showCreateModal && (
-        <div className="modal-backdrop">
-          <div
-            className="modal-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="create-vehicle-title"
-          >
+        <Modal onClose={closeCreateModal} labelledBy="create-vehicle-title">
             <div className="modal-header">
               <h2 id="create-vehicle-title">Thêm xe mới</h2>
 
@@ -528,7 +525,7 @@ export default function VehiclesPage() {
               </button>
             </div>
 
-            <form onSubmit={handleCreate}>
+            <form className="vehicle-form" onSubmit={handleCreate}>
               <VehicleFormFields
                 prefix="create-vehicle"
                 form={createForm}
@@ -562,18 +559,11 @@ export default function VehiclesPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {editingVehicle && (
-        <div className="modal-backdrop">
-          <div
-            className="modal-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="edit-vehicle-title"
-          >
+        <Modal onClose={closeEditModal} labelledBy="edit-vehicle-title">
             <div className="modal-header">
               <h2 id="edit-vehicle-title">Sửa thông tin xe</h2>
 
@@ -588,7 +578,7 @@ export default function VehiclesPage() {
               </button>
             </div>
 
-            <form onSubmit={handleUpdate}>
+            <form className="vehicle-form" onSubmit={handleUpdate}>
               <VehicleFormFields
                 prefix="edit-vehicle"
                 form={editForm}
@@ -622,33 +612,21 @@ export default function VehiclesPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {deleteTarget && (
-        <div className="modal-backdrop">
-          <div
-            className="modal-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-vehicle-title"
-          >
+        <Modal onClose={closeDeleteModal} labelledBy="delete-vehicle-title">
             <div className="modal-header">
               <h2 id="delete-vehicle-title">Xác nhận xóa xe</h2>
             </div>
 
             <p>
               Bạn có chắc muốn xóa xe biển số{' '}
-              <strong>{deleteTarget.license_plate}</strong>?
+              <strong><Plate value={deleteTarget.license_plate} /></strong>?
             </p>
 
-            <p
-              style={{
-                marginTop: 8,
-                color: 'var(--text-secondary)',
-              }}
-            >
+            <p className="deletion-note">
               Hãy xóa các phiếu sửa chữa đủ điều kiện trước. Xe còn phiếu đã duyệt,
               bắt đầu sửa, dùng phụ tùng hoặc có hóa đơn sẽ không thể bị xóa.
             </p>
@@ -672,8 +650,7 @@ export default function VehiclesPage() {
                 {deleting ? 'Đang xóa...' : 'Xóa xe'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

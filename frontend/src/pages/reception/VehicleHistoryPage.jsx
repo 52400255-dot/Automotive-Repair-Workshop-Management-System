@@ -7,6 +7,8 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import StatusBadge from '../../components/common/StatusBadge';
+import Plate from '../../components/common/Plate';
+import RepairOrderCode from '../../components/common/RepairOrderCode';
 
 /** Định dạng số tiền VND gọn để hiển thị (NULL/0 → dấu gạch) */
 function money(value) {
@@ -112,7 +114,7 @@ export default function VehicleHistoryPage() {
             <tbody>
               {vehicles.map((v) => (
                 <tr key={v.id}>
-                  <td><strong>{v.license_plate}</strong></td>
+                  <td><Plate value={v.license_plate} /></td>
                   <td>{v.brand} {v.model}</td>
                   <td>{v.customer_name}</td>
                   <td>{Number(v.job_count || 0)}</td>
@@ -142,7 +144,7 @@ export default function VehicleHistoryPage() {
           <div className="table-card-heading">
             <div>
               <p className="eyebrow">Lịch sử phương tiện</p>
-              <h2>{selected.license_plate}</h2>
+              <h2><Plate value={selected.license_plate} /></h2>
               <p>{selected.brand} {selected.model} · {selected.manufacture_year || '—'} · {selected.customer_name}</p>
             </div>
             <span className="record-count">{history.length} phiếu</span>
@@ -162,10 +164,10 @@ export default function VehicleHistoryPage() {
               <tbody>
                 {history.map((j) => (
                   <tr key={j.id}>
-                    <td><strong>#{j.id}</strong></td>
+                    <td><RepairOrderCode id={j.id} /></td>
                     <td><StatusBadge status={j.status} /></td>
                     <td className="job-request-cell">
-                      {j.customer_request || '—'}
+                      <span className="job-request-copy">{j.customer_request || '—'}</span>
                     </td>
                     <td>{joinItems(j.services)}</td>
                     <td>{joinItems(j.parts, true)}</td>

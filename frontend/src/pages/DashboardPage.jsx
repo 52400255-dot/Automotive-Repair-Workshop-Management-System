@@ -6,6 +6,8 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/common/StatusBadge';
+import Plate from '../components/common/Plate';
+import RepairOrderCode from '../components/common/RepairOrderCode';
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -102,7 +104,10 @@ export default function DashboardPage() {
               <tbody>
                 {jobs.slice(0, 6).map((j) => (
                   <tr key={j.id}>
-                    <td><strong>#{j.id}</strong><div className="table-secondary">{j.license_plate}{j.brand || j.model ? ' · ' + (j.brand || '') + ' ' + (j.model || '') : ''}</div></td>
+                    <td>
+                      <div className="repair-row-identity"><RepairOrderCode id={j.id} /><Plate value={j.license_plate} /></div>
+                      <div className="table-secondary">{[j.brand, j.model].filter(Boolean).join(' ')}</div>
+                    </td>
                     <td>{j.customer_name || '—'}</td>
                     <td><StatusBadge status={j.status} /></td>
                     <td>{j.received_at ? new Date(j.received_at).toLocaleDateString('vi-VN') : '—'}</td>

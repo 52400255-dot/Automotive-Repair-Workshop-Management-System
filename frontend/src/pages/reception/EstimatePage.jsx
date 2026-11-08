@@ -40,7 +40,7 @@ export default function EstimatePage() {
           <span>Tổng chi phí dự toán</span>
           <strong>{total.toLocaleString()} VNĐ</strong>
         </div>
-        <button className="btn btn-success" type="button">
+        <button className="btn btn-primary" type="button">
           Xuất báo giá
         </button>
       </div>

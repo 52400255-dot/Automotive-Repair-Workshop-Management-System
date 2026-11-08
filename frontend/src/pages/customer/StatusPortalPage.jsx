@@ -8,6 +8,9 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import StatusBadge from '../../components/common/StatusBadge';
+import Plate from '../../components/common/Plate';
+import RepairOrderCode from '../../components/common/RepairOrderCode';
+import WorkshopProgress from '../../components/common/WorkshopProgress';
 
 export default function StatusPortalPage() {
   const [vehicles, setVehicles] = useState([]);
@@ -102,11 +105,11 @@ export default function StatusPortalPage() {
               <article key={estimate.id} className="card portal-estimate-card">
                 <header className="portal-estimate-heading">
                   <div>
-                    <p className="portal-vehicle-label">Phiếu #{estimate.repair_job_id}</p>
-                    <h3>{estimate.license_plate} · {estimate.brand} {estimate.model}</h3>
+                    <p className="portal-vehicle-label">Phiếu <RepairOrderCode id={estimate.repair_job_id} /></p>
+                    <h3><Plate value={estimate.license_plate} /> · {estimate.brand} {estimate.model}</h3>
                     <p>{estimate.customer_request}</p>
                   </div>
-                  <span className={`badge ${estimate.status === 'rejected' ? 'badge-cancelled' : estimate.status === 'approved' ? 'badge-completed' : 'badge-pending'}`}>
+                  <span className={`badge ${estimate.status === 'rejected' ? 'badge-cancelled' : estimate.status === 'approved' ? 'badge-progress' : 'badge-approval'}`}>
                     {estimate.status === 'sent' ? 'Chờ bạn xác nhận' : estimate.status === 'approved' ? 'Đã đồng ý' : 'Đã từ chối'}
                   </span>
                 </header>
@@ -133,7 +136,7 @@ export default function StatusPortalPage() {
                   <div className="portal-estimate-actions">
                     <button
                       type="button"
-                      className="btn btn-outline"
+                      className="btn btn-danger"
                       disabled={estimateBusyId === estimate.id}
                       onClick={() => decideEstimate(estimate, 'reject')}
                     >Từ chối</button>
@@ -168,7 +171,7 @@ export default function StatusPortalPage() {
               <span className="portal-vehicle-mark" aria-hidden="true">{v.brand?.slice(0, 1) || 'V'}</span>
               <div>
                 <span className="portal-vehicle-label">Phương tiện</span>
-                <strong>{v.license_plate} — {v.brand} {v.model} ({v.manufacture_year})</strong>
+                <strong><Plate value={v.license_plate} /> <span>— {v.brand} {v.model} ({v.manufacture_year})</span></strong>
               </div>
             </div>
             <div className="table-wrapper">
@@ -177,9 +180,9 @@ export default function StatusPortalPage() {
                 <tbody>
                   {(histories[v.id] || []).map((j) => (
                     <tr key={j.id}>
-                      <td><strong>#{j.id}</strong></td>
-                      <td>{j.customer_request}</td>
-                      <td><StatusBadge status={j.status} /></td>
+                    <td><RepairOrderCode id={j.id} /></td>
+                    <td className="job-request-cell"><span className="job-request-copy">{j.customer_request}</span></td>
+                    <td className="portal-work-status"><StatusBadge status={j.status} /><WorkshopProgress status={j.status} compact /></td>
                       <td>{new Date(j.received_at).toLocaleString('vi-VN')}</td>
                       <td>{j.completed_at ? new Date(j.completed_at).toLocaleString('vi-VN') : '—'}</td>
                     </tr>

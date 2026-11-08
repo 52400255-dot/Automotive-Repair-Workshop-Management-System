@@ -5,6 +5,9 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import StatusBadge from '../../components/common/StatusBadge';
+import Plate from '../../components/common/Plate';
+import RepairOrderCode from '../../components/common/RepairOrderCode';
+import Modal from '../../components/common/Modal';
 import EstimateModal from './EstimateModal';
 
 export default function RepairJobsPage() {
@@ -188,9 +191,12 @@ export default function RepairJobsPage() {
             <tbody>
               {visibleJobs.map((j) => (
                 <tr key={j.id}>
-                  <td><strong>#{j.id}</strong><div className="table-secondary"><b>{j.license_plate}</b> · {j.brand} {j.model}</div></td>
+                  <td>
+                    <div className="repair-row-identity"><RepairOrderCode id={j.id} /><Plate value={j.license_plate} /></div>
+                    <div className="table-secondary">{j.brand} {j.model}</div>
+                  </td>
                   <td>{j.customer_name || '—'}</td>
-                  <td className="job-request-cell">{j.customer_request || 'Không có mô tả'}</td>
+                  <td className="job-request-cell"><span className="job-request-copy">{j.customer_request || 'Không có mô tả'}</span></td>
                   <td>{j.mechanic_name ? <span className="assigned-mechanic">{j.mechanic_name}</span> : <span className="unassigned-mechanic">Chưa phân công</span>}</td>
                   <td><StatusBadge status={j.status} /></td>
                   <td>
@@ -200,7 +206,7 @@ export default function RepairJobsPage() {
                           ? <button type="button" className="btn btn-primary" onClick={() => openAssign(j)}>Phân công</button>
                           : <button type="button" className="btn btn-outline" onClick={() => openAssign(j)}>Đổi thợ</button>
                       )}
-                      {j.status === 'diagnosing' && <button type="button" className="btn btn-success" onClick={() => setEstimateJob(j)}>Lập báo giá</button>}
+                      {j.status === 'diagnosing' && <button type="button" className="btn btn-outline" onClick={() => setEstimateJob(j)}>Lập báo giá</button>}
                       {['pending', 'diagnosing', 'estimated', 'cancelled'].includes(j.status) && (
                         <button type="button" className="btn btn-danger" onClick={() => setDeleteJob(j)}>Xóa phiếu</button>
                       )}
@@ -218,8 +224,7 @@ export default function RepairJobsPage() {
       </section>
       {/* Modal Phân công kỹ thuật viên (US07) */}
       {assignModal.open && (
-        <div className="modal-backdrop">
-          <div className="modal-panel assign-modal" role="dialog" aria-modal="true" aria-labelledby="assign-title">
+        <Modal onClose={closeAssign} labelledBy="assign-title" className="assign-modal">
             <div className="modal-header">
               <div>
                 <p className="eyebrow">Phân công kỹ thuật</p>
@@ -229,7 +234,7 @@ export default function RepairJobsPage() {
             </div>
 
             <div className="assign-job-summary">
-              <p><span>Xe</span><strong>{assignModal.job?.license_plate} · {assignModal.job?.brand} {assignModal.job?.model}</strong></p>
+              <p><span>Xe</span><strong><Plate value={assignModal.job?.license_plate} /> · {assignModal.job?.brand} {assignModal.job?.model}</strong></p>
               <p><span>Khách hàng</span><strong>{assignModal.job?.customer_name}</strong></p>
               <p><span>Yêu cầu</span><strong>{assignModal.job?.customer_request}</strong></p>
             </div>
@@ -265,8 +270,7 @@ export default function RepairJobsPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
       {estimateJob && (
         <EstimateModal
@@ -276,22 +280,21 @@ export default function RepairJobsPage() {
         />
       )}
       {deleteJob && (
-        <div className="modal-backdrop">
-          <div className="modal-panel" role="dialog" aria-modal="true" aria-labelledby="delete-repair-job-title">
+        <Modal onClose={() => { if (!deletingJob) setDeleteJob(null); }} labelledBy="delete-repair-job-title">
             <div className="modal-header">
               <div>
                 <p className="eyebrow">Xóa dữ liệu phiếu</p>
-                <h2 id="delete-repair-job-title">Xác nhận xóa phiếu #{deleteJob.id}</h2>
+                <h2 id="delete-repair-job-title">Xác nhận xóa phiếu <RepairOrderCode id={deleteJob.id} /></h2>
               </div>
               <button type="button" className="btn btn-outline modal-close" onClick={() => setDeleteJob(null)} disabled={deletingJob} aria-label="Đóng">×</button>
             </div>
             <div className="assign-job-summary">
-              <p><span>Xe</span><strong>{deleteJob.license_plate} · {deleteJob.brand} {deleteJob.model}</strong></p>
+              <p><span>Xe</span><strong><Plate value={deleteJob.license_plate} /> · {deleteJob.brand} {deleteJob.model}</strong></p>
               <p><span>Khách hàng</span><strong>{deleteJob.customer_name}</strong></p>
               <p><span>Trạng thái</span><strong><StatusBadge status={deleteJob.status} /></strong></p>
             </div>
             <p>Thao tác này xóa phiếu cùng chẩn đoán, phân công và báo giá liên quan. Xe và hồ sơ khách hàng vẫn được giữ lại.</p>
-            <p style={{ marginTop: 8, color: 'var(--text-secondary)' }}>
+            <p className="deletion-note">
               Phiếu đã được khách duyệt, đã bắt đầu sửa, có phụ tùng đã sử dụng hoặc có hóa đơn sẽ không thể xóa để bảo toàn lịch sử.
             </p>
             <div className="modal-actions">
@@ -300,8 +303,7 @@ export default function RepairJobsPage() {
                 {deletingJob ? 'Đang xóa...' : 'Xóa phiếu'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
