@@ -26,7 +26,7 @@ async function signIn(page, email, password) {
 
 test('admin đổi role trên giao diện và thấy thay đổi đã lưu sau khi tải lại', async ({ page }) => {
   await signIn(page, fixtures.adminEmail, fixtures.password);
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/dashboard$/);
   await page.goto('/admin/roles');
   await expect(page.getByRole('heading', { name: 'Vai trò & phân quyền' })).toBeVisible();
 
@@ -54,7 +54,7 @@ test('tài khoản role thường không mở được trang quản lý role', a
   await expect(page).not.toHaveURL(/\/login$/);
 
   await page.goto('/admin/roles');
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByRole('heading', { name: 'Vai trò & phân quyền' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Vai trò & phân quyền' })).toHaveCount(0);
 });
