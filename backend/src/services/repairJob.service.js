@@ -3,6 +3,7 @@
  * phân công thợ, ghi nhận chẩn đoán
  */
 const { pool } = require('../config/db');
+const notificationService = require('./notification.service');
 const { isPositiveId, normalizeServiceItems, validateReceptionData, validateDiagnosisData, isValidStatusTransition } = require('../utils/workflow');
 const fail = (code, message) => { throw Object.assign(new Error(message), { statusCode: code }); };
 const JOB_STATUSES = new Set(['pending', 'diagnosing', 'estimated', 'approved', 'in_repair', 'completed', 'cancelled']);
@@ -33,7 +34,9 @@ async function findAll(status) {
             c.full_name AS customer_name,
             u.full_name AS receptionist_name,
             m.full_name AS mechanic_name,
-            ma.mechanic_id
+            ma.mechanic_id,
+            inv.id AS invoice_id,
+            inv.status AS invoice_status
      FROM repair_jobs rj
      JOIN vehicles v ON v.id = rj.vehicle_id
      JOIN customers c ON c.id = v.customer_id
@@ -44,6 +47,11 @@ async function findAll(status) {
        ORDER BY assigned_at DESC, id DESC LIMIT 1
      ) ma ON true
      LEFT JOIN users m ON m.id = ma.mechanic_id
+     LEFT JOIN LATERAL (
+       SELECT id, status FROM invoices
+       WHERE repair_job_id = rj.id
+       ORDER BY issued_at DESC, id DESC LIMIT 1
+     ) inv ON true
      WHERE ($1::VARCHAR IS NULL OR rj.status = $1)
      ORDER BY rj.received_at DESC`,
     [status || null]
@@ -126,9 +134,19 @@ async function updateStatus(id, status, actor) {
     if (!['in_repair', 'completed', 'cancelled'].includes(status)) {
       fail(409, 'Trạng thái này chỉ được chuyển qua bước phân công hoặc duyệt báo giá');
     }
-    return (await client.query(`UPDATE repair_jobs SET status = $2,
+    const updated = (await client.query(`UPDATE repair_jobs SET status = $2,
       completed_at = CASE WHEN $3::boolean THEN CURRENT_TIMESTAMP ELSE completed_at END
       WHERE id = $1 RETURNING *`, [id, status, status === 'completed'])).rows[0];
+    const messages = {
+      in_repair: ['Xe bắt đầu được sửa chữa', '{plate} đã bắt đầu được sửa chữa tại gara.'],
+      completed: ['Xe đã sửa xong', '{plate} đã hoàn tất sửa chữa và đang chờ thanh toán/bàn giao.'],
+      cancelled: ['Phiếu sửa chữa đã hủy', 'Phiếu sửa chữa xe {plate} đã được hủy.'],
+    };
+    if (messages[status]) {
+      const [title, message] = messages[status];
+      await notificationService.notifyJobCustomer(id, { eventKey: `repair-${id}-${status}`, title, message, entityType: 'repair_job', entityId: id }, client);
+    }
+    return updated;
   });
 }
 

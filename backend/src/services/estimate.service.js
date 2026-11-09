@@ -2,6 +2,7 @@
  * estimate.service — Báo giá: tạo, tính tiền, duyệt/từ chối
  */
 const { pool } = require('../config/db');
+const notificationService = require('./notification.service');
 const { isValidStatusTransition, validateEstimateData } = require('../utils/workflow');
 
 const fail = (statusCode, message) => {
@@ -123,6 +124,7 @@ async function create({ repairJobId, items }) {
       [Number(repairJobId)]
     );
     if (!updatedJob.rowCount) fail(409, 'Phiếu sửa chữa đã thay đổi trạng thái, không thể lập báo giá');
+    await notificationService.notifyJobCustomer(Number(repairJobId), { eventKey: `repair-${repairJobId}-estimate-${est.rows[0].id}`, title: 'Gara đã gửi báo giá', message: 'Gara đã gửi báo giá cho xe {plate}. Vui lòng xem và phản hồi trong cổng khách hàng.', entityType: 'estimate', entityId: est.rows[0].id }, client);
 
     await client.query('COMMIT');
     return findById(est.rows[0].id);
@@ -141,9 +143,10 @@ async function approve(id, actor) {
     await client.query('BEGIN');
     await requireCustomerOwnership(client, id, actor);
     const locked = await client.query(
-      `SELECT e.*, rj.status AS repair_job_status
+      `SELECT e.*, rj.status AS repair_job_status, v.license_plate, c.user_id AS customer_user_id
        FROM estimates e
        JOIN repair_jobs rj ON rj.id = e.repair_job_id
+       JOIN vehicles v ON v.id=rj.vehicle_id JOIN customers c ON c.id=v.customer_id
        WHERE e.id = $1
        FOR UPDATE OF e, rj`,
       [id]
@@ -171,6 +174,7 @@ async function approve(id, actor) {
       [estimate.repair_job_id]
     );
     if (!updatedJob.rowCount) fail(409, 'Phiếu sửa chữa đã thay đổi trạng thái, không thể duyệt báo giá');
+    await notificationService.createForUser({ userId: current.customer_user_id, eventKey: `estimate-${id}-approved`, title: 'Bạn đã duyệt báo giá', message: `Báo giá cho xe ${current.license_plate} đã được xác nhận. Gara sẽ tiếp tục quy trình sửa chữa.`, entityType: 'estimate', entityId: id }, client);
     await client.query('COMMIT');
     return findById(id);
   } catch (err) {
@@ -188,9 +192,10 @@ async function reject(id, actor) {
     await client.query('BEGIN');
     await requireCustomerOwnership(client, id, actor);
     const locked = await client.query(
-      `SELECT e.*, rj.status AS repair_job_status
+      `SELECT e.*, rj.status AS repair_job_status, v.license_plate, c.user_id AS customer_user_id
        FROM estimates e
        JOIN repair_jobs rj ON rj.id = e.repair_job_id
+       JOIN vehicles v ON v.id=rj.vehicle_id JOIN customers c ON c.id=v.customer_id
        WHERE e.id = $1
        FOR UPDATE OF e, rj`,
       [id]
@@ -218,6 +223,7 @@ async function reject(id, actor) {
       [estimate.repair_job_id]
     );
     if (!updatedJob.rowCount) fail(409, 'Phiếu sửa chữa đã thay đổi trạng thái, không thể từ chối báo giá');
+    await notificationService.createForUser({ userId: current.customer_user_id, eventKey: `estimate-${id}-rejected`, title: 'Báo giá đã bị từ chối', message: `Báo giá cho xe ${current.license_plate} đã bị từ chối và phiếu sửa chữa đã được hủy.`, entityType: 'estimate', entityId: id }, client);
     await client.query('COMMIT');
     return findById(id);
   } catch (err) {

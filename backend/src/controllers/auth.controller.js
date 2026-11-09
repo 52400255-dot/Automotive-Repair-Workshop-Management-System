@@ -45,4 +45,18 @@ async function me(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { login, register, me };
+async function updateMe(req, res, next) {
+  try {
+    const profile = await authService.updateProfile(req.user.id, req.body || {});
+    res.json({ success: true, data: profile });
+  } catch (err) { next(err); }
+}
+
+async function changePassword(req, res, next) {
+  try {
+    await authService.changePassword(req.user.id, req.body || {});
+    res.json({ success: true, message: 'Đã đổi mật khẩu' });
+  } catch (err) { next(err); }
+}
+
+module.exports = { login, register, me, updateMe, changePassword };

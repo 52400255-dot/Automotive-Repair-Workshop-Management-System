@@ -4,6 +4,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import api from '../../services/api';
+import Plate from '../../components/common/Plate';
 
 export default function ReceptionPage() {
   const [customers, setCustomers] = useState([]);
@@ -168,7 +169,7 @@ export default function ReceptionPage() {
                 {vehicles.map((v) => <option key={v.id} value={v.id}>{v.license_plate} — {v.brand} {v.model} ({v.manufacture_year || 'N/A'})</option>)}
               </select>
               {customerId && !vehiclesLoading && !vehiclesError && vehicles.length === 0 && <small className="form-hint form-hint-warning">Khách hàng này chưa có xe trong hệ thống.</small>}
-              {selectedVehicle && <small className="reception-field-note">Biển số {selectedVehicle.license_plate} · {selectedVehicle.brand} {selectedVehicle.model}</small>}
+              {selectedVehicle && <small className="reception-field-note">Biển số <Plate value={selectedVehicle.license_plate} /> · {selectedVehicle.brand} {selectedVehicle.model}</small>}
             </div>
           </div>
 
@@ -209,7 +210,7 @@ export default function ReceptionPage() {
           </div>
           <div className="reception-summary-section">
             <span className="summary-label">PHƯƠNG TIỆN</span>
-            <strong>{selectedVehicle ? selectedVehicle.license_plate : 'Chưa chọn phương tiện'}</strong>
+            <strong>{selectedVehicle ? <Plate value={selectedVehicle.license_plate} /> : 'Chưa chọn phương tiện'}</strong>
             <small>{selectedVehicle ? [selectedVehicle.brand, selectedVehicle.model].filter(Boolean).join(' ') : 'Biển số xe sẽ hiển thị tại đây'}</small>
           </div>
           <div className="reception-summary-section">

@@ -8,9 +8,11 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import Modal from '../../components/common/Modal';
 
 // Vai trò được thêm/sửa/nhập kho/ghi nhận sử dụng (khớp phân quyền backend)
 const MANAGE_ROLES = ['warehouse_staff', 'admin'];
+const IMPORT_ROLES = ['warehouse_staff', 'service_manager', 'admin'];
 // Vai trò được gọi GET /spare-parts/low-stock (các vai trò khác sẽ bị 403 → tự đăng xuất)
 const LOW_STOCK_ROLES = ['warehouse_staff', 'service_manager', 'admin'];
 
@@ -40,10 +42,10 @@ function errorText(err, fallback) {
 
 /* ===================== Thành phần nhỏ ===================== */
 
-function Field({ label, error, children }) {
+function Field({ label, error, htmlFor, children }) {
   return (
     <div className="form-group">
-      <label>{label}</label>
+      <label htmlFor={htmlFor}>{label}</label>
       {children}
       {error && (
         <div className="form-hint form-hint-error">{error}</div>
@@ -67,7 +69,7 @@ function StockBadge({ part }) {
       </span>
     );
   }
-  return <span className="badge badge-completed">Đủ hàng</span>;
+  return <span className="badge badge-stock-ok">Đủ hàng</span>;
 }
 
 /* ===================== Modal Thêm mới / Chỉnh sửa (US10) ===================== */
@@ -167,20 +169,20 @@ function PartModal({ mode, part, existingCodes, onClose, onSaved }) {
   }
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-panel" role="dialog" aria-modal="true">
+    <Modal onClose={() => { if (!submitting) onClose(); }} labelledBy="part-modal-title">
         <div className="modal-header">
-          <h2>{isEdit ? 'Chỉnh sửa phụ tùng' : 'Thêm mới phụ tùng'}</h2>
-          <button type="button" className="btn btn-outline" onClick={onClose} disabled={submitting}>
-            ✕
+          <h2 id="part-modal-title">{isEdit ? 'Chỉnh sửa phụ tùng' : 'Thêm mới phụ tùng'}</h2>
+          <button type="button" className="btn btn-outline" onClick={onClose} disabled={submitting} aria-label="Đóng">
+            ×
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} noValidate>
+        <form className="inventory-part-form" onSubmit={handleSubmit} noValidate>
           {serverError && <div className="alert alert-error">{serverError}</div>}
 
-          <Field label="Mã phụ tùng" error={errors.partCode}>
+          <Field label="Mã phụ tùng" error={errors.partCode} htmlFor="part-code">
             <input
+              id="part-code"
               className="form-control"
               value={form.partCode}
               onChange={set('partCode')}
@@ -189,8 +191,9 @@ function PartModal({ mode, part, existingCodes, onClose, onSaved }) {
             />
           </Field>
 
-          <Field label="Tên phụ tùng" error={errors.partName}>
+          <Field label="Tên phụ tùng" error={errors.partName} htmlFor="part-name">
             <input
+              id="part-name"
               className="form-control"
               value={form.partName}
               onChange={set('partName')}
@@ -198,8 +201,9 @@ function PartModal({ mode, part, existingCodes, onClose, onSaved }) {
             />
           </Field>
 
-          <Field label="Đơn vị tính" error={errors.unit}>
+          <Field label="Đơn vị tính" error={errors.unit} htmlFor="part-unit">
             <input
+              id="part-unit"
               className="form-control"
               value={form.unit}
               onChange={set('unit')}
@@ -211,8 +215,10 @@ function PartModal({ mode, part, existingCodes, onClose, onSaved }) {
           <Field
             label={isEdit ? 'Tồn kho hiện tại (đổi bằng chức năng Nhập kho)' : 'Số lượng ban đầu'}
             error={errors.stockQuantity}
+            htmlFor="part-stock-quantity"
           >
             <input
+              id="part-stock-quantity"
               className="form-control"
               inputMode="numeric"
               value={form.stockQuantity}
@@ -221,8 +227,9 @@ function PartModal({ mode, part, existingCodes, onClose, onSaved }) {
             />
           </Field>
 
-          <Field label="Đơn giá (đ)" error={errors.unitPrice}>
+          <Field label="Đơn giá (đ)" error={errors.unitPrice} htmlFor="part-unit-price">
             <input
+              id="part-unit-price"
               className="form-control"
               inputMode="decimal"
               value={form.unitPrice}
@@ -231,8 +238,9 @@ function PartModal({ mode, part, existingCodes, onClose, onSaved }) {
             />
           </Field>
 
-          <Field label="Ngưỡng tồn tối thiểu" error={errors.minStock}>
+          <Field label="Ngưỡng tồn tối thiểu" error={errors.minStock} htmlFor="part-min-stock">
             <input
+              id="part-min-stock"
               className="form-control"
               inputMode="numeric"
               value={form.minStock}
@@ -249,8 +257,7 @@ function PartModal({ mode, part, existingCodes, onClose, onSaved }) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -280,12 +287,11 @@ function ImportModal({ part, onClose, onSaved }) {
   }
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal-panel" role="dialog" aria-modal="true">
+    <Modal onClose={() => { if (!submitting) onClose(); }} labelledBy="import-modal-title">
         <div className="modal-header">
-          <h2>Nhập hàng vào kho</h2>
-          <button type="button" className="btn btn-outline" onClick={onClose} disabled={submitting}>
-            ✕
+          <h2 id="import-modal-title">Nhập hàng vào kho</h2>
+          <button type="button" className="btn btn-outline" onClick={onClose} disabled={submitting} aria-label="Đóng">
+            ×
           </button>
         </div>
 
@@ -299,8 +305,9 @@ function ImportModal({ part, onClose, onSaved }) {
         <form onSubmit={handleSubmit} noValidate>
           {error && <div className="alert alert-error">{error}</div>}
 
-          <Field label="Số lượng nhập">
+          <Field label="Số lượng nhập" htmlFor="import-quantity">
             <input
+              id="import-quantity"
               className="form-control"
               inputMode="numeric"
               value={quantity}
@@ -319,14 +326,13 @@ function ImportModal({ part, onClose, onSaved }) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
 /* ===================== Form ghi nhận sử dụng phụ tùng (US11) ===================== */
 
-function UsageForm({ parts, onDone }) {
+function UsageForm({ parts, onDone, jobs = null, jobsLoadError = '', jobsLoading = false }) {
   const [form, setForm] = useState({ repairJobId: '', partId: '', quantity: '1' });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -337,6 +343,10 @@ function UsageForm({ parts, onDone }) {
 
     if (!isPositiveInt(form.repairJobId)) {
       setError('Mã phiếu sửa chữa phải là số nguyên dương.');
+      return;
+    }
+    if (jobs && !jobs.some((job) => String(job.id) === String(form.repairJobId))) {
+      setError('Chỉ có thể ghi nhận phụ tùng cho phiếu đang sửa chữa.');
       return;
     }
     if (!form.partId) {
@@ -402,14 +412,22 @@ function UsageForm({ parts, onDone }) {
       >
         <div className="form-group">
           <label htmlFor="usage-repair-job">Mã phiếu sửa chữa</label>
-          <input
-            id="usage-repair-job"
-            className="form-control"
-            inputMode="numeric"
-            placeholder="Ví dụ: 1"
-            value={form.repairJobId}
-            onChange={(e) => setForm({ ...form, repairJobId: e.target.value })}
-          />
+          {jobs ? (
+            <select id="usage-repair-job" className="form-control" value={form.repairJobId} onChange={(e) => setForm({ ...form, repairJobId: e.target.value })} disabled={jobsLoading || !!jobsLoadError || !jobs.length} required>
+              <option value="">{jobsLoading ? 'Đang tải phiếu...' : jobsLoadError ? 'Không tải được phiếu' : jobs.length ? '-- Chọn phiếu đang sửa chữa --' : 'Không có phiếu đang sửa chữa'}</option>
+              {jobs.map((job) => <option key={job.id} value={job.id}>#{job.id} · {job.license_plate} · {job.brand} {job.model}</option>)}
+            </select>
+          ) : (
+            <input
+              id="usage-repair-job"
+              className="form-control"
+              inputMode="numeric"
+              placeholder="Ví dụ: 1"
+              value={form.repairJobId}
+              onChange={(e) => setForm({ ...form, repairJobId: e.target.value })}
+            />
+          )}
+          {jobsLoadError && <div className="form-hint form-hint-error">{jobsLoadError}</div>}
         </div>
         <div className="form-group">
           <label htmlFor="usage-part">Phụ tùng</label>
@@ -438,7 +456,7 @@ function UsageForm({ parts, onDone }) {
             onChange={(e) => setForm({ ...form, quantity: e.target.value })}
           />
         </div>
-        <button type="submit" className="btn btn-primary usage-submit" disabled={submitting}>
+        <button type="submit" className="btn btn-primary usage-submit" disabled={submitting || jobsLoading || (!!jobs && !jobs.length) || !!jobsLoadError}>
           {submitting ? 'Đang ghi nhận...' : 'Ghi nhận sử dụng'}
         </button>
       </form>
@@ -452,9 +470,14 @@ export default function InventoryPage() {
   const { user } = useAuth();
   const role = user?.role;
   const canManage = MANAGE_ROLES.includes(role);
+  const canImport = IMPORT_ROLES.includes(role);
+  const canShowActions = canManage || canImport;
   const canCallLowStock = LOW_STOCK_ROLES.includes(role);
 
   const [parts, setParts] = useState([]);
+  const [repairJobs, setRepairJobs] = useState([]);
+  const [jobsLoadError, setJobsLoadError] = useState('');
+  const [jobsLoading, setJobsLoading] = useState(false);
   const [lowParts, setLowParts] = useState([]);
   const [tab, setTab] = useState('all'); // 'all' | 'low'
   const [loading, setLoading] = useState(true);
@@ -471,6 +494,22 @@ export default function InventoryPage() {
         const all = await api.get('/spare-parts');
         if (!active) return;
         setParts(all.data.data || []);
+
+        if (role === 'admin') {
+          setJobsLoading(true);
+          try {
+            const inRepair = await api.get('/repair-jobs?status=in_repair');
+            if (!active) return;
+            setRepairJobs(inRepair.data.data || []);
+            setJobsLoadError('');
+          } catch (err) {
+            if (active) setJobsLoadError(errorText(err, 'Không tải được danh sách phiếu đang sửa chữa.'));
+          } finally {
+            if (active) setJobsLoading(false);
+          }
+        } else {
+          setJobsLoading(false);
+        }
 
         // Tab "Sắp hết hàng": gọi API low-stock (chỉ với vai trò được phép)
         if (tab === 'low' && canCallLowStock) {
@@ -490,7 +529,7 @@ export default function InventoryPage() {
     return () => {
       active = false;
     };
-  }, [reload, tab, canCallLowStock]);
+  }, [reload, tab, canCallLowStock, role]);
 
   function handleDone(message) {
     setModal(null);
@@ -501,7 +540,7 @@ export default function InventoryPage() {
   const allLow = parts.filter(isLow);
   const visibleParts = tab === 'low' ? (canCallLowStock ? lowParts : allLow) : parts;
   const existingCodes = parts.map((p) => String(p.part_code).toLowerCase());
-  const columnCount = canManage ? 8 : 7;
+  const columnCount = canShowActions ? 8 : 7;
 
   return (
     <div className="inventory-page">
@@ -549,7 +588,7 @@ export default function InventoryPage() {
       )}
 
       {/* Ghi nhận sử dụng phụ tùng (US11) */}
-      {canManage && <UsageForm parts={parts} onDone={handleDone} />}
+      {canManage && <UsageForm parts={parts} jobs={role === 'admin' ? repairJobs : null} jobsLoadError={role === 'admin' ? jobsLoadError : ''} jobsLoading={role === 'admin' && jobsLoading} onDone={handleDone} />}
 
       {/* Tab lọc (US12) */}
       <div className="filter-tabs" role="group" aria-label="Lọc phụ tùng">
@@ -589,7 +628,7 @@ export default function InventoryPage() {
                 <th>TỒN TỐI THIỂU</th>
                 <th>ĐƠN GIÁ</th>
                 <th>TRẠNG THÁI</th>
-                {canManage && <th>THAO TÁC</th>}
+                {canShowActions && <th>THAO TÁC</th>}
               </tr>
             </thead>
             <tbody>
@@ -606,21 +645,21 @@ export default function InventoryPage() {
                   <td>
                     <StockBadge part={p} />
                   </td>
-                  {canManage && (
+                  {canShowActions && (
                     <td>
                       <div className="action-buttons">
-                        <button
+                        {canManage && <button
                           className="btn btn-outline"
                           onClick={() => setModal({ type: 'edit', part: p })}
                         >
                           Sửa
-                        </button>
-                        <button
+                        </button>}
+                        {canImport && <button
                           className="btn btn-outline"
                           onClick={() => setModal({ type: 'import', part: p })}
                         >
                           Nhập kho
-                        </button>
+                        </button>}
                       </div>
                     </td>
                   )}

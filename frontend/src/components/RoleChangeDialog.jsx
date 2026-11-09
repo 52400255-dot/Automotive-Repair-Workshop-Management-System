@@ -58,14 +58,7 @@ export default function RoleChangeDialog({
       aria-labelledby="role-change-title"
       aria-describedby="role-change-description"
       onCancel={handleCancel}
-      style={{
-        width: 'min(480px, calc(100vw - 32px))',
-        maxHeight: '85vh',
-        overflowY: 'auto',
-        padding: '24px',
-        border: '1px solid #d1d5db',
-        borderRadius: '12px',
-      }}
+      className="dialog-role-change"
     >
       <form onSubmit={handleSubmit} aria-busy={isSubmitting}>
         <h2 id="role-change-title">Xác nhận đổi vai trò</h2>
@@ -99,17 +92,10 @@ export default function RoleChangeDialog({
           <p role="status">Đang cập nhật vai trò…</p>
         )}
 
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            flexWrap: 'wrap',
-            gap: '12px',
-            marginTop: '24px',
-          }}
-        >
+        <div className="dialog-actions">
           <button
             type="button"
+            className="btn btn-outline"
             onClick={onCancel}
             disabled={isSubmitting}
             autoFocus
@@ -117,7 +103,7 @@ export default function RoleChangeDialog({
             Hủy
           </button>
 
-          <button type="submit" disabled={!canConfirm}>
+          <button type="submit" className="btn btn-primary" disabled={!canConfirm}>
             {isSubmitting ? 'Đang lưu…' : 'Xác nhận đổi vai trò'}
           </button>
         </div>

@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
+import Plate from '../../components/common/Plate';
+import RepairOrderCode from '../../components/common/RepairOrderCode';
+import Modal from '../../components/common/Modal';
 
 const emptyForm = {
   laborDescription: 'Tiền công sửa chữa',
@@ -191,16 +194,10 @@ export default function EstimateModal({
   }
 
   return (
-    <div className="modal-backdrop">
-      <div
-        className="modal-panel"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="estimate-modal-title"
-      >
+    <Modal onClose={() => { if (!submitting) onClose(); }} labelledBy="estimate-modal-title">
         <div className="modal-header">
-          <h2 id="estimate-modal-title">
-            Lập báo giá — Phiếu #{job.id}
+            <h2 id="estimate-modal-title">
+            Lập báo giá — <RepairOrderCode id={job.id} />
           </h2>
 
           <button
@@ -214,16 +211,9 @@ export default function EstimateModal({
           </button>
         </div>
 
-        <div
-          style={{
-            padding: 12,
-            marginBottom: 16,
-            borderRadius: 6,
-            background: 'var(--bg)',
-          }}
-        >
+        <div className="estimate-job-context">
           <p>
-            <strong>Xe:</strong> {job.license_plate}{' '}
+            <strong>Xe:</strong> <Plate value={job.license_plate} />{' '}
             ({job.brand} {job.model})
           </p>
 
@@ -244,7 +234,7 @@ export default function EstimateModal({
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form className="estimate-form" onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="labor-description">
               Nội dung tiền công (*)
@@ -285,15 +275,7 @@ export default function EstimateModal({
           <div className="form-group">
             <label>Phụ tùng dự kiến</label>
 
-            <div
-              style={{
-                maxHeight: 230,
-                overflowY: 'auto',
-                padding: 12,
-                border: '1px solid var(--border)',
-                borderRadius: 6,
-              }}
-            >
+            <div className="estimate-part-picker">
               {loadingParts && (
                 <p role="status">
                   Đang tải danh mục phụ tùng...
@@ -312,25 +294,8 @@ export default function EstimateModal({
                 );
 
                 return (
-                  <div
-                    key={part.id}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 90px',
-                      gap: 12,
-                      alignItems: 'center',
-                      padding: '8px 0',
-                      borderBottom:
-                        '1px solid var(--border)',
-                    }}
-                  >
-                    <label
-                      style={{
-                        display: 'flex',
-                        gap: 8,
-                        alignItems: 'flex-start',
-                      }}
-                    >
+                  <div key={part.id} className="estimate-part-row">
+                    <label className="estimate-part-choice">
                       <input
                         type="checkbox"
                         checked={selected}
@@ -396,17 +361,7 @@ export default function EstimateModal({
             />
           </div>
 
-          <div
-            style={{
-              padding: 12,
-              borderRadius: 6,
-              background: 'var(--primary-light)',
-              color: 'var(--primary-dark)',
-              fontSize: 16,
-              fontWeight: 700,
-              textAlign: 'right',
-            }}
-          >
+          <div className="estimate-total-banner">
             Tổng dự kiến:{' '}
             {totalAmount.toLocaleString('vi-VN')} đ
           </div>
@@ -423,7 +378,7 @@ export default function EstimateModal({
 
             <button
               type="submit"
-              className="btn btn-success"
+              className="btn btn-primary"
               disabled={
                 submitting ||
                 loadingParts ||
@@ -437,7 +392,6 @@ export default function EstimateModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -153,22 +153,32 @@ async function deductForJob({ repairJobId, sparePartId, quantity, recordedBy, re
 
 /** Nhập kho phụ tùng (warehouse staff) */
 async function importStock({ sparePartId, quantity, recordedBy }) {
+  const partId = Number(sparePartId);
+  const amount = Number(quantity);
+  const fail = (statusCode, message) => { throw Object.assign(new Error(message), { statusCode }); };
+  if (!isPositiveId(partId)) fail(400, 'Mã phụ tùng không hợp lệ');
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 9999999999.99) {
+    fail(400, 'Số lượng nhập phải lớn hơn 0 và không vượt quá giới hạn cho phép');
+  }
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    await client.query(
-      'UPDATE spare_parts SET stock_quantity = stock_quantity + $2 WHERE id = $1',
-      [sparePartId, quantity]
+    const part = await client.query('SELECT id FROM spare_parts WHERE id = $1 FOR UPDATE', [partId]);
+    if (!part.rowCount) fail(404, 'Không tìm thấy phụ tùng');
+    const updated = await client.query(
+      'UPDATE spare_parts SET stock_quantity = stock_quantity + $2 WHERE id = $1 RETURNING *',
+      [partId, amount]
     );
     await client.query(
       `INSERT INTO inventory_movements (spare_part_id, recorded_by, movement_type, quantity)
        VALUES ($1, $2, 'import', $3)`,
-      [sparePartId, recordedBy, quantity]
+      [partId, recordedBy, amount]
     );
     await client.query('COMMIT');
-    return findById(sparePartId);
+    return updated.rows[0];
   } catch (err) {
-    await client.query('ROLLBACK');
+    try { await client.query('ROLLBACK'); } catch { /* transaction may already be closed */ }
     throw err;
   } finally {
     client.release();

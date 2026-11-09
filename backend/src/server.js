@@ -23,6 +23,9 @@ const estimateRoutes = require('./routes/estimate.routes');
 const invoiceRoutes = require('./routes/invoice.routes');
 const serviceRoutes = require('./routes/service.routes');
 const userRoutes = require('./routes/user.routes');
+const shiftRoutes = require('./routes/shift.routes');
+const appointmentRoutes = require('./routes/appointment.routes');
+const notificationRoutes = require('./routes/notification.routes');
 const { errorHandler } = require('./middleware/errorHandler');
 const { testConnection } = require('./config/db');
 
@@ -48,6 +51,9 @@ app.use('/api/v1/estimates', estimateRoutes);
 app.use('/api/v1/invoices', invoiceRoutes);
 app.use('/api/v1/services', serviceRoutes);
 app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/shifts', shiftRoutes);
+app.use('/api/v1/appointments', appointmentRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 
 // ---- 404 cho route không tồn tại ----
 app.use((req, res) => {

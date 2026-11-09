@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
+import Modal from '../../components/common/Modal';
 
 const emptyForm = {
   fullName: '',
@@ -245,19 +246,9 @@ export default function CustomersPage() {
 
       <form
         className="card customer-create-form"
-        style={{
-          marginBottom: 16,
-          display: 'flex',
-          gap: 12,
-          alignItems: 'flex-end',
-          flexWrap: 'wrap',
-        }}
         onSubmit={handleCreate}
       >
-        <div
-          className="form-group"
-          style={{ margin: 0, flex: 1, minWidth: 180 }}
-        >
+        <div className="form-group customer-create-field">
           <label htmlFor="create-full-name">Họ và tên (*)</label>
           <input
             id="create-full-name"
@@ -271,10 +262,7 @@ export default function CustomersPage() {
           />
         </div>
 
-        <div
-          className="form-group"
-          style={{ margin: 0, flex: 1, minWidth: 150 }}
-        >
+        <div className="form-group customer-create-field">
           <label htmlFor="create-phone">Số điện thoại (*)</label>
           <input
             id="create-phone"
@@ -288,10 +276,7 @@ export default function CustomersPage() {
           />
         </div>
 
-        <div
-          className="form-group"
-          style={{ margin: 0, flex: 1, minWidth: 190 }}
-        >
+        <div className="form-group customer-create-field customer-create-field-wide">
           <label htmlFor="create-email">Email</label>
           <input
             id="create-email"
@@ -305,10 +290,7 @@ export default function CustomersPage() {
           />
         </div>
 
-        <div
-          className="form-group"
-          style={{ margin: 0, flex: 1, minWidth: 220 }}
-        >
+        <div className="form-group customer-create-field customer-create-field-wide">
           <label htmlFor="create-address">Địa chỉ</label>
           <input
             id="create-address"
@@ -339,6 +321,7 @@ export default function CustomersPage() {
           <input
             className="form-control"
             type="search"
+            aria-label="Tìm khách hàng theo tên hoặc số điện thoại"
             placeholder="Tìm theo tên hoặc số điện thoại..."
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
@@ -409,13 +392,7 @@ export default function CustomersPage() {
       </div>
 
       {editingCustomer && (
-        <div className="modal-backdrop">
-          <div
-            className="modal-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="edit-customer-title"
-          >
+        <Modal onClose={closeEditModal} labelledBy="edit-customer-title">
             <div className="modal-header">
               <h2 id="edit-customer-title">Sửa khách hàng</h2>
 
@@ -430,7 +407,7 @@ export default function CustomersPage() {
               </button>
             </div>
 
-            <form onSubmit={handleUpdate}>
+            <form className="customer-edit-form" onSubmit={handleUpdate}>
               <div className="form-group">
                 <label htmlFor="edit-full-name">Họ và tên (*)</label>
                 <input
@@ -509,18 +486,11 @@ export default function CustomersPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {deleteTarget && (
-        <div className="modal-backdrop">
-          <div
-            className="modal-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-customer-title"
-          >
+        <Modal onClose={closeDeleteModal} labelledBy="delete-customer-title">
             <div className="modal-header">
               <h2 id="delete-customer-title">Xác nhận xóa khách hàng</h2>
             </div>
@@ -530,7 +500,7 @@ export default function CustomersPage() {
               <strong>{deleteTarget.full_name}</strong>?
             </p>
 
-            <p style={{ marginTop: 8, color: 'var(--text-secondary)' }}>
+            <p className="deletion-note">
               Để xóa khách hàng, trước tiên xóa các phiếu sửa chữa đủ điều kiện,
               rồi xóa xe liên quan trong mục Quản lý xe. Phiếu đã duyệt, bắt đầu
               sửa, dùng phụ tùng hoặc có hóa đơn sẽ được giữ lại. Tài khoản khách
@@ -556,8 +526,7 @@ export default function CustomersPage() {
                 {deleting ? 'Đang xóa...' : 'Xóa khách hàng'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

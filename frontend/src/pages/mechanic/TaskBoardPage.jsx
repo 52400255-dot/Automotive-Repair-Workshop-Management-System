@@ -9,6 +9,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../../services/api';
 import StatusBadge from '../../components/common/StatusBadge';
+import Plate from '../../components/common/Plate';
+import RepairOrderCode from '../../components/common/RepairOrderCode';
+import WorkshopProgress from '../../components/common/WorkshopProgress';
+import Modal from '../../components/common/Modal';
 import { useAuth } from '../../context/AuthContext';
 
 // Máy trạng thái hữu hạn (FSM): chỉ cho phép đi tiếp đúng 1 bước.
@@ -65,6 +69,9 @@ export default function TaskBoardPage() {
   // Modal phụ tùng (US11)
   const [partModal, setPartModal] = useState({ open: false, job: null });
   const [partsList, setPartsList] = useState([]);
+  const [partsLoading, setPartsLoading] = useState(false);
+  const [partsLoadError, setPartsLoadError] = useState('');
+  const [partsActionError, setPartsActionError] = useState('');
   const [selectedPartId, setSelectedPartId] = useState('');
   const [partQuantity, setPartQuantity] = useState(1);
   // Ghi nhận phụ tùng đã dùng trong phiên làm việc: { [jobId]: [{ partId, name, code, quantity }] }
@@ -188,12 +195,17 @@ export default function TaskBoardPage() {
     setPartModal({ open: true, job });
     setSelectedPartId('');
     setPartQuantity(1);
+    setPartsLoading(true);
+    setPartsLoadError('');
+    setPartsActionError('');
     try {
       const res = await api.get('/spare-parts');
       const data = res.data?.data ?? res.data ?? [];
       setPartsList(Array.isArray(data) ? data : []);
     } catch (err) {
-      showToast(err.response?.data?.message || 'Lỗi tải danh sách phụ tùng', 'error');
+      setPartsLoadError(err.response?.data?.message || 'Không tải được danh sách phụ tùng.');
+    } finally {
+      setPartsLoading(false);
     }
   }
 
@@ -213,6 +225,7 @@ export default function TaskBoardPage() {
     if (!selectedPart || qtyInvalid || overStock) return;
     const job = partModal.job;
     setSubmitting(true);
+    setPartsActionError('');
     try {
       await api.post(`/spare-parts/${selectedPart.id}/deduct`, {
         repairJobId: job.id,
@@ -222,14 +235,20 @@ export default function TaskBoardPage() {
         ...prev,
         [job.id]: [
           ...(prev[job.id] || []),
-          { partId: selectedPart.id, name: selectedPart.name, code: codeOf(selectedPart), quantity: qtyNum },
+          { partId: selectedPart.id, name: selectedPart.part_name || selectedPart.name, code: codeOf(selectedPart), quantity: qtyNum },
         ],
       }));
-      showToast(`✓ Đã ghi nhận ${qtyNum} x ${selectedPart.name} cho Phiếu #${job.id}!`, 'success');
+      showToast(`Đã ghi nhận ${qtyNum} x ${selectedPart.part_name || selectedPart.name} cho Phiếu #${job.id}.`, 'success');
       closePartModal();
       setReload((n) => n + 1);
     } catch (err) {
-      showToast(err.response?.data?.message || 'Lỗi khi trừ tồn kho phụ tùng', 'error');
+      setPartsActionError(err.response?.data?.message || 'Không ghi nhận được phụ tùng.');
+      if (err.response?.status === 409) {
+        try {
+          const response = await api.get('/spare-parts');
+          setPartsList(response.data?.data ?? []);
+        } catch { /* keep the current stock values and server error visible */ }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -257,12 +276,16 @@ export default function TaskBoardPage() {
         <div className="task-metric-card"><span>Đã hoàn thành</span><strong>{counts.completed || 0}</strong><small>Đã hoàn tất sửa chữa</small></div>
       </div>
       {toast.text && (
-        <div
-          className={`toast-notice ${toast.type === 'success' ? 'toast-success' : 'toast-error'}`}
-          role="status"
-          onClick={() => setToast({ text: '', type: '' })}
-        >
-          {toast.text}
+        <div className={`toast-notice ${toast.type === 'success' ? 'toast-success' : 'toast-error'}`} role="status">
+          <span>{toast.text}</span>
+          <button
+            type="button"
+            className="toast-dismiss"
+            aria-label="Đóng thông báo"
+            onClick={() => setToast({ text: '', type: '' })}
+          >
+            ×
+          </button>
         </div>
       )}
 
@@ -288,11 +311,14 @@ export default function TaskBoardPage() {
             <article key={j.id} className={`card job-card job-card-${j.status}`}>
               <div className="job-card-header">
                 <div className="job-card-identity">
-                  <span className="job-number">Phiếu #{j.id}</span>
-                  <h2>{j.license_plate} <span>{j.brand} {j.model}</span></h2>
+                  <span className="job-number">Mã phiếu · <RepairOrderCode id={j.id} /></span>
+                  <h2><Plate value={j.license_plate} /> <span>{j.brand} {j.model}</span></h2>
                   <p>Khách hàng: <strong>{j.customer_name}</strong>{j.customer_phone ? ` · ${j.customer_phone}` : ''}</p>
                 </div>
-                <StatusBadge status={j.status} />
+                <div className="job-statusline">
+                  <StatusBadge status={j.status} />
+                  <WorkshopProgress status={j.status} compact />
+                </div>
               </div>
 
               <section className="job-detail-block customer-request-block">
@@ -415,7 +441,7 @@ export default function TaskBoardPage() {
                 {usedPartRows.map((part, index) => (
                   <li key={part.jobId + '-' + part.name + '-' + index}>
                     <span className="task-part-icon" aria-hidden="true">⌁</span>
-                    <span><strong>{part.name}</strong><small>Phiếu #{part.jobId}</small></span>
+                    <span><strong>{part.name}</strong><small>Phiếu <RepairOrderCode id={part.jobId} /></small></span>
                     <b>×{part.quantity}</b>
                   </li>
                 ))}
@@ -429,8 +455,7 @@ export default function TaskBoardPage() {
       </div>
 
       {diagnosisModal.open && (
-        <div className="modal-backdrop">
-          <div className="modal-panel task-modal" role="dialog" aria-modal="true" aria-labelledby="diagnosis-title">
+        <Modal onClose={() => { if (!submitting) closeDiagnosis(); }} labelledBy="diagnosis-title" className="task-modal">
             <div className="modal-header">
               <div>
                 <p className="eyebrow">Cập nhật kỹ thuật</p>
@@ -440,7 +465,7 @@ export default function TaskBoardPage() {
             </div>
 
             <div className="modal-context">
-              <p><span>Phương tiện</span><strong>{diagnosisModal.job?.license_plate} · {diagnosisModal.job?.brand} {diagnosisModal.job?.model}</strong></p>
+              <p><span>Phương tiện</span><strong><Plate value={diagnosisModal.job?.license_plate} /> · {diagnosisModal.job?.brand} {diagnosisModal.job?.model}</strong></p>
               <p><span>Yêu cầu</span><strong>{diagnosisModal.job?.customer_request}</strong></p>
             </div>
 
@@ -477,17 +502,15 @@ export default function TaskBoardPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {completeModal.open && completeModal.job && (
-        <div className="modal-backdrop">
-          <div className="modal-panel task-modal" role="dialog" aria-modal="true" aria-labelledby="complete-title">
+        <Modal onClose={() => { if (busyJobId !== completeModal.job.id) setCompleteModal({ open: false, job: null }); }} labelledBy="complete-title" className="task-modal">
             <div className="modal-header">
               <div>
                 <p className="eyebrow">Xác nhận bàn giao</p>
-                <h2 id="complete-title">Hoàn thành · Phiếu #{completeModal.job.id}</h2>
+                <h2 id="complete-title">Hoàn thành · <RepairOrderCode id={completeModal.job.id} /></h2>
               </div>
               <button
                 type="button"
@@ -499,7 +522,7 @@ export default function TaskBoardPage() {
             </div>
 
             <div className="modal-context">
-              <p><span>Phương tiện</span><strong>{completeModal.job.license_plate} · {completeModal.job.brand} {completeModal.job.model}</strong></p>
+              <p><span>Phương tiện</span><strong><Plate value={completeModal.job.license_plate} /> · {completeModal.job.brand} {completeModal.job.model}</strong></p>
               <p><span>Khách hàng</span><strong>{completeModal.job.customer_name}</strong></p>
               <p><span>Yêu cầu</span><strong>{completeModal.job.customer_request || 'Không có mô tả'}</strong></p>
             </div>
@@ -542,13 +565,11 @@ export default function TaskBoardPage() {
                 {busyJobId === completeModal.job.id ? 'Đang xử lý...' : 'Xác nhận hoàn thành'}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {partModal.open && (
-        <div className="modal-backdrop">
-          <div className="modal-panel task-modal" role="dialog" aria-modal="true" aria-labelledby="part-title">
+        <Modal onClose={() => { if (!submitting) closePartModal(); }} labelledBy="part-title" className="task-modal">
             <div className="modal-header">
               <div>
                 <p className="eyebrow">Vật tư xưởng</p>
@@ -558,19 +579,23 @@ export default function TaskBoardPage() {
             </div>
 
             <form onSubmit={handleDeductPartSubmit}>
+              {partsActionError && <div className="alert alert-error" role="alert">{partsActionError}</div>}
               <div className="form-group">
                 <label htmlFor="repair-part">Phụ tùng trong kho <em>(bắt buộc)</em></label>
+                {partsLoading && <p role="status">Đang tải danh sách phụ tùng...</p>}
+                {partsLoadError && <div className="alert alert-error" role="alert">{partsLoadError} <button type="button" className="text-link" onClick={() => openPartModal(partModal.job)}>Thử lại</button></div>}
                 <select
                   id="repair-part"
                   className="form-control"
                   value={selectedPartId}
                   onChange={(e) => setSelectedPartId(e.target.value)}
+                  disabled={partsLoading || !!partsLoadError}
                   required
                 >
                   <option value="">-- Chọn phụ tùng --</option>
                   {partsList.map((p) => (
                     <option key={p.id} value={p.id} disabled={Number(stockOf(p)) <= 0}>
-                      {p.name} {codeOf(p) ? `(${codeOf(p)})` : ''} — tồn: {stockOf(p)}
+                      {p.part_name || p.name} {codeOf(p) ? `(${codeOf(p)})` : ''} — tồn: {stockOf(p)}
                     </option>
                   ))}
                 </select>
@@ -598,14 +623,13 @@ export default function TaskBoardPage() {
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  disabled={submitting || !selectedPart || qtyInvalid || overStock}
+                  disabled={submitting || partsLoading || !!partsLoadError || !selectedPart || qtyInvalid || overStock}
                 >
                   {submitting ? 'Đang ghi nhận...' : 'Xác nhận sử dụng'}
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

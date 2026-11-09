@@ -136,10 +136,76 @@ function generateToken(user) {
 /** Lấy thông tin user hiện tại từ token (không trả password_hash) */
 async function getProfile(userId) {
   const result = await pool.query(
-    'SELECT id, full_name, email, role, created_at FROM users WHERE id = $1',
+    `SELECT u.id, u.full_name, u.email, u.role, u.created_at,
+            c.phone, c.address
+     FROM users u LEFT JOIN customers c ON c.user_id = u.id WHERE u.id = $1`,
     [userId]
   );
   return result.rows[0] || null;
 }
 
-module.exports = { findByEmail, registerCustomer, verifyPassword, generateToken, getProfile };
+async function updateProfile(userId, { fullName, email, phone, address }) {
+  const cleanName = typeof fullName === 'string' ? fullName.trim() : '';
+  const cleanEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  if (cleanName.length < 2 || cleanName.length > 150) fail(400, 'Họ tên phải có từ 2 đến 150 ký tự');
+  if (cleanEmail.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) fail(400, 'Email không hợp lệ');
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const current = await client.query('SELECT role FROM users WHERE id = $1 FOR UPDATE', [userId]);
+    if (!current.rowCount) fail(404, 'Không tìm thấy người dùng');
+    const isCustomer = current.rows[0].role === 'customer';
+    const cleanPhone = normalizePhone(phone);
+    const cleanAddress = typeof address === 'string' ? address.trim() : '';
+    if (isCustomer && (cleanPhone.length < 8 || cleanPhone.length > 15)) fail(400, 'Số điện thoại phải có từ 8 đến 15 chữ số');
+    if (isCustomer && cleanAddress.length > 255) fail(400, 'Địa chỉ không được vượt quá 255 ký tự');
+
+    const duplicate = await client.query('SELECT id FROM users WHERE lower(email) = $1 AND id <> $2', [cleanEmail, userId]);
+    if (duplicate.rowCount) fail(409, 'Email đã được sử dụng');
+    await client.query('UPDATE users SET full_name = $2, email = $3 WHERE id = $1', [userId, cleanName, cleanEmail]);
+    if (isCustomer) {
+      await client.query(
+        `INSERT INTO customers (user_id, full_name, email, phone, address)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (user_id) DO UPDATE SET full_name = EXCLUDED.full_name,
+           email = EXCLUDED.email, phone = EXCLUDED.phone, address = EXCLUDED.address`,
+        [userId, cleanName, cleanEmail, cleanPhone, cleanAddress || null]
+      );
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch { /* transaction may already be closed */ }
+    if (err.code === '23505') fail(409, 'Email đã được sử dụng');
+    throw err;
+  } finally {
+    client.release();
+  }
+  return getProfile(userId);
+}
+
+async function changePassword(userId, { currentPassword, newPassword }) {
+  if (typeof currentPassword !== 'string' || !currentPassword) fail(400, 'Vui lòng nhập mật khẩu hiện tại');
+  if (typeof newPassword !== 'string' || newPassword.length < 8 || Buffer.byteLength(newPassword, 'utf8') > 72) {
+    fail(400, 'Mật khẩu mới phải có ít nhất 8 ký tự và không vượt quá 72 byte');
+  }
+  if (currentPassword === newPassword) fail(400, 'Mật khẩu mới phải khác mật khẩu hiện tại');
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query('SELECT password_hash FROM users WHERE id = $1 FOR UPDATE', [userId]);
+    if (!result.rowCount) fail(404, 'Không tìm thấy người dùng');
+    if (!await bcrypt.compare(currentPassword, result.rows[0].password_hash)) fail(400, 'Mật khẩu hiện tại không đúng');
+    const hash = await bcrypt.hash(newPassword, 10);
+    await client.query('UPDATE users SET password_hash = $2 WHERE id = $1', [userId, hash]);
+    await client.query('COMMIT');
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch { /* transaction may already be closed */ }
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+module.exports = { findByEmail, registerCustomer, verifyPassword, generateToken, getProfile, updateProfile, changePassword };

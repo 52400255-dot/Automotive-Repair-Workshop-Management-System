@@ -15,6 +15,11 @@ async function getById(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function listMine(req, res, next) {
+  try { res.json({ success: true, data: await invoiceService.findForCustomer(req.user.id) }); }
+  catch (err) { next(err); }
+}
+
 /** Lễ tân xuất hóa đơn cho phiếu sửa đã hoàn thành */
 async function create(req, res, next) {
   try {
@@ -23,11 +28,19 @@ async function create(req, res, next) {
   } catch (err) { next(err); }
 }
 
-async function pay(req, res, next) {
+async function getForJob(req, res, next) {
   try {
-    const invoice = await invoiceService.markPaid(req.params.id, req.body);
+    const invoice = await invoiceService.findForJob(req.params.repairJobId);
+    if (!invoice) return res.status(404).json({ success: false, message: 'Phiếu sửa chưa có hóa đơn' });
     res.json({ success: true, data: invoice });
   } catch (err) { next(err); }
 }
 
-module.exports = { getById, create, pay };
+async function pay(req, res, next) {
+  try {
+    const invoice = await invoiceService.markPaid(req.params.id, { ...req.body, userId: req.user.id });
+    res.json({ success: true, data: invoice });
+  } catch (err) { next(err); }
+}
+
+module.exports = { getById, listMine, getForJob, create, pay };

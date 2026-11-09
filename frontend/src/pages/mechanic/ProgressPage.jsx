@@ -23,7 +23,7 @@ export default function ProgressPage() {
             <div className="card table-wrapper">
             <table>
                 <thead>
-                    <tr style={{ backgroundColor: '#f2f2f2' }}> 
+                    <tr>
                         <th>Mã Phiếu</th>
                         <th>Biển Số Xe</th>
                         <th>Khách Hàng</th>

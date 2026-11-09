@@ -84,7 +84,7 @@ export default function RoleManagementPage() {
   }
 
   return (
-    <div className="legacy-page">
+    <div className="legacy-page role-management-page">
       <div className="page-header">
         <div>
           <p className="eyebrow">Quản trị truy cập</p>

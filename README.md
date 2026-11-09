@@ -23,7 +23,7 @@ Hệ thống web quản lý toàn bộ quy trình sửa chữa ô tô:
 |---|---|
 | **Frontend** | React 19 + Vite + React Router 7 + Axios |
 | **Backend** | Node.js 22 + Express 5 (routes → controllers → services) |
-| **Database** | PostgreSQL 16 — 19 migrations, parameterized query, transaction, FK/CHECK |
+| **Database** | PostgreSQL 16 — 23 migrations, parameterized query, transaction, FK/CHECK |
 | **Auth** | JWT (HS256) + RBAC 6 vai trò, bcrypt password hash |
 | **API Contract** | OpenAPI 3.1 — `api/openapi.yaml` |
 | **Testing** | Node.js built-in test runner — unit test, API integration test, Playwright browser E2E |
@@ -148,7 +148,7 @@ Các thay đổi US17 đã được merge qua PR #42–#45; US18/US19 đã đư�
 │       │   └── workflow.js         # State machine & validation (US04, US06, US07, US08)
 │       └── server.js
 ├── database/
-│   ├── migrations/                 # 001 → 019, chạy tuần tự khi khởi tạo DB
+│   ├── migrations/                 # 001 → 023, chạy tuần tự khi khởi tạo DB
 │   │   ├── 001_init.sql            # Schema người dùng
 │   │   ├── 002_customers_vehicles.sql
 │   │   ├── 003_repair_jobs.sql
