@@ -246,6 +246,14 @@ async function getJobsForMechanic(mechanicId, status) {
     SELECT DISTINCT ON (rj.id)
            rj.*, v.license_plate, v.brand, v.model,
            c.full_name AS customer_name, c.phone AS customer_phone,
+           COALESCE((
+             SELECT json_agg(json_build_object(
+               'id', up.id, 'part_id', up.spare_part_id, 'name', sp.part_name,
+               'part_code', sp.part_code, 'quantity', up.quantity
+             ) ORDER BY up.used_at, up.id)
+             FROM used_parts up JOIN spare_parts sp ON sp.id=up.spare_part_id
+             WHERE up.repair_job_id=rj.id
+           ), '[]'::json) AS used_parts,
            d.diagnosis_result, d.repair_suggestion, d.diagnosed_at
     FROM repair_jobs rj
     JOIN LATERAL (

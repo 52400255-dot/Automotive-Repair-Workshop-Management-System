@@ -74,8 +74,8 @@ export default function TaskBoardPage() {
   const [partsActionError, setPartsActionError] = useState('');
   const [selectedPartId, setSelectedPartId] = useState('');
   const [partQuantity, setPartQuantity] = useState(1);
-  // Ghi nhận phụ tùng đã dùng trong phiên làm việc: { [jobId]: [{ partId, name, code, quantity }] }
-  const [usedParts, setUsedParts] = useState({});
+  const [removePartModal, setRemovePartModal] = useState({ job: null, part: null });
+  const [removePartError, setRemovePartError] = useState('');
 
   const showToast = useCallback((text, type) => setToast({ text, type }), []);
 
@@ -112,15 +112,13 @@ export default function TaskBoardPage() {
   // Phụ tùng đã dùng: ưu tiên dữ liệu backend trả về (nếu có) + ghi nhận trong phiên
   function partsOfJob(job) {
     const fromServer = Array.isArray(job.used_parts) ? job.used_parts : [];
-    const local = usedParts[job.id] || [];
-    return [
-      ...fromServer.map((p) => ({
-        name: p.name || p.part_name,
-        code: p.part_code || p.sku || '',
-        quantity: p.quantity ?? p.quantity_used,
-      })),
-      ...local,
-    ];
+    return fromServer.map((p) => ({
+      id: p.id,
+      partId: p.part_id || p.spare_part_id,
+      name: p.name || p.part_name,
+      code: p.part_code || p.sku || '',
+      quantity: p.quantity ?? p.quantity_used,
+    }));
   }
 
   // ===== Chuyển trạng thái (US09) =====
@@ -231,13 +229,6 @@ export default function TaskBoardPage() {
         repairJobId: job.id,
         quantity: qtyNum,
       });
-      setUsedParts((prev) => ({
-        ...prev,
-        [job.id]: [
-          ...(prev[job.id] || []),
-          { partId: selectedPart.id, name: selectedPart.part_name || selectedPart.name, code: codeOf(selectedPart), quantity: qtyNum },
-        ],
-      }));
       showToast(`Đã ghi nhận ${qtyNum} x ${selectedPart.part_name || selectedPart.name} cho Phiếu #${job.id}.`, 'success');
       closePartModal();
       setReload((n) => n + 1);
@@ -251,6 +242,23 @@ export default function TaskBoardPage() {
       }
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function reverseUsedPart() {
+    const { job, part } = removePartModal;
+    if (!job || !part?.id || busyJobId === job.id) return;
+    setBusyJobId(job.id);
+    setRemovePartError('');
+    try {
+      await api.delete(`/spare-parts/usage/${part.id}`);
+      setRemovePartModal({ job: null, part: null });
+      showToast(`Đã thu hồi ${part.name} khỏi Phiếu #${job.id}; số lượng đã được trả về kho.`, 'success');
+      setReload((n) => n + 1);
+    } catch (err) {
+      setRemovePartError(err.response?.data?.message || 'Không thu hồi được phụ tùng.');
+    } finally {
+      setBusyJobId(null);
     }
   }
 
@@ -388,8 +396,16 @@ export default function TaskBoardPage() {
                   ) : (
                     <ul>
                       {used.map((p, i) => (
-                        <li key={`${p.name}-${i}`}>
-                          {p.name} {p.code ? `(${p.code})` : ''} <strong>×{p.quantity}</strong>
+                        <li key={p.id || `${p.name}-${i}`}>
+                          <span>{p.name} {p.code ? `(${p.code})` : ''} <strong>×{p.quantity}</strong></span>
+                          {j.status === 'in_repair' && p.id && <button
+                            type="button"
+                            className="used-part-remove"
+                            aria-label={`Thu hồi ${p.name} khỏi phiếu ${j.id}`}
+                            title="Thu hồi phụ tùng đã ghi nhầm"
+                            disabled={busyJobId === j.id}
+                            onClick={() => { setRemovePartError(''); setRemovePartModal({ job: j, part: p }); }}
+                          >×</button>}
                         </li>
                       ))}
                     </ul>
@@ -629,6 +645,29 @@ export default function TaskBoardPage() {
                 </button>
               </div>
             </form>
+        </Modal>
+      )}
+
+      {removePartModal.job && removePartModal.part && (
+        <Modal
+          onClose={() => { if (busyJobId !== removePartModal.job.id) setRemovePartModal({ job: null, part: null }); }}
+          labelledBy="remove-used-part-title"
+          className="task-modal"
+        >
+          <div className="modal-header">
+            <div>
+              <p className="eyebrow">ĐIỀU CHỈNH PHỤ TÙNG</p>
+              <h2 id="remove-used-part-title">Thu hồi phụ tùng đã ghi nhầm</h2>
+            </div>
+            <button type="button" className="btn btn-outline modal-close" aria-label="Đóng" disabled={busyJobId === removePartModal.job.id} onClick={() => setRemovePartModal({ job: null, part: null })}>×</button>
+          </div>
+          <p>{removePartModal.part.name} {removePartModal.part.code ? `(${removePartModal.part.code})` : ''} · {removePartModal.part.quantity} đơn vị · Phiếu #{removePartModal.job.id}</p>
+          <p className="shift-policy-note">Số lượng sẽ được cộng lại vào kho và ghi lịch sử thu hồi.</p>
+          {removePartError && <div className="alert alert-error" role="alert">{removePartError}</div>}
+          <div className="modal-actions">
+            <button type="button" className="btn btn-outline" disabled={busyJobId === removePartModal.job.id} onClick={() => setRemovePartModal({ job: null, part: null })}>Hủy</button>
+            <button type="button" className="btn btn-danger" disabled={busyJobId === removePartModal.job.id} onClick={reverseUsedPart}>{busyJobId === removePartModal.job.id ? 'Đang thu hồi...' : 'Thu hồi phụ tùng'}</button>
+          </div>
         </Modal>
       )}
     </div>

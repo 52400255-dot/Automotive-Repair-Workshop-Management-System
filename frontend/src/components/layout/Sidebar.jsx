@@ -108,7 +108,7 @@ export default function Sidebar({ isOpen = false, onNavigate }) {
         </div>
       </div>
 
-      <nav className="sidebar-groups" aria-label="Khu vực làm việc">
+      <nav className="sidebar-groups" aria-label="Khu vực làm việc" tabIndex={0}>
         {groups.map((group) => (
           <div className="sidebar-group" key={group.label}>
             <p className="sidebar-group-label">{group.label}</p>

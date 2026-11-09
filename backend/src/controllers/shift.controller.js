@@ -8,7 +8,7 @@ async function open(req, res, next) {
 }
 
 async function current(_req, res, next) {
-  try { res.json({ success: true, data: await shiftService.getCurrentShift() }); }
+  try { res.json({ success: true, data: await shiftService.getCurrentShift(_req.user.role) }); }
   catch (err) { next(err); }
 }
 
@@ -16,6 +16,25 @@ async function transaction(req, res, next) {
   try {
     const data = await shiftService.recordTransaction({ ...req.body, userId: req.user.id, type: 'outflow' });
     res.status(201).json({ success: true, data });
+  } catch (err) { next(err); }
+}
+
+async function cashMovement(req, res, next) {
+  try {
+    const data = await shiftService.recordManagerCashMovement({ ...req.body, userId: req.user.id, userRole: req.user.role });
+    res.status(201).json({ success: true, data });
+  } catch (err) { next(err); }
+}
+
+async function inventoryPayables(req, res, next) {
+  try { res.json({ success: true, data: await shiftService.getInventoryPayables() }); }
+  catch (err) { next(err); }
+}
+
+async function payoutPayable(req, res, next) {
+  try {
+    const data = await shiftService.payoutInventoryPayable({ payableId: req.params.payableId, ...req.body, userId: req.user.id, userRole: req.user.role });
+    res.json({ success: true, data });
   } catch (err) { next(err); }
 }
 
@@ -33,7 +52,7 @@ async function history(req, res, next) {
 
 async function getById(req, res, next) {
   try {
-    const data = await shiftService.getShiftWithTransactions(req.params.id);
+    const data = await shiftService.getShiftWithTransactions(req.params.id, req.user.role);
     if (!data) return res.status(404).json({ success: false, message: 'Không tìm thấy ca làm việc' });
     res.json({ success: true, data });
   } catch (err) { next(err); }
@@ -56,4 +75,4 @@ async function updateSettings(req, res, next) {
   catch (err) { next(err); }
 }
 
-module.exports = { open, current, transaction, close, history, getById, approveTransaction, settings, updateSettings };
+module.exports = { open, current, transaction, cashMovement, inventoryPayables, payoutPayable, close, history, getById, approveTransaction, settings, updateSettings };
