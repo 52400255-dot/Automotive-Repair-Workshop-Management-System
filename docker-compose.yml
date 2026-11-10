@@ -24,13 +24,33 @@ services:
       # Chạy tự động toàn bộ migration khi tạo DB mới
       - ./database/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 5s
       timeout: 5s
       retries: 10
 
+  # Apply migrations and demo seeds before starting the API. This also fixes
+  # existing volumes that were created before demo data was loaded.
+  db-setup:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["node", "backend/src/scripts/setupDb.js"]
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:?Thieu DB_USER - hay khai bao trong file .env o thu muc goc}
+      DB_PASSWORD: ${DB_PASSWORD:?Thieu DB_PASSWORD - hay khai bao trong file .env o thu muc goc}
+      DB_NAME: ${DB_NAME:?Thieu DB_NAME - hay khai bao trong file .env o thu muc goc}
+      JWT_SECRET: ${JWT_SECRET:?Thieu JWT_SECRET - hay khai bao trong file .env o thu muc goc}
+    depends_on:
+      db:
+        condition: service_healthy
+
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     ports:
       - "${PORT:-3000}:3000"
     environment:
@@ -44,15 +64,21 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
       VAT_RATE: ${VAT_RATE:-0.10}
     depends_on:
-      db:
-        condition: service_healthy
+      db-setup:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   frontend:
     build: ./frontend
     ports:
       - "8080:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   workshop_db_data:

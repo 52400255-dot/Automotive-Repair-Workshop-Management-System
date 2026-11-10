@@ -1,0 +1,102 @@
+---
+title: "Use Case diagram - Automotive Repair Workshop Management System"
+config:
+  flowchart:
+    nodeSpacing: 70
+    rankSpacing: 130
+---
+flowchart LR
+  classDef actor fill:#ffffff,stroke:#2f3b45,stroke-width:1.6px,color:#111
+  classDef uc fill:#e9f5fd,stroke:#3d9bd1,stroke-width:1.2px,color:#0c3a55
+  classDef sup fill:#f1f8ee,stroke:#6aa84f,stroke-width:1.2px,color:#2c4a20
+  classDef grp fill:#fbfbfb,stroke:#c9c9c9,color:#333
+
+  CUSTOMER@{ shape: person, label: "Khách hàng (customer)" }
+  RECEPTIONIST@{ shape: person, label: "Lễ tân (receptionist)" }
+  MANAGER@{ shape: person, label: "Quản lý dịch vụ (service_manager)" }
+  MECHANIC@{ shape: person, label: "Thợ máy (mechanic)" }
+  WAREHOUSE@{ shape: person, label: "Nhân viên kho (warehouse_staff)" }
+  ADMIN@{ shape: person, label: "Quản trị viên (admin)" }
+
+  class CUSTOMER,RECEPTIONIST,MANAGER,MECHANIC,WAREHOUSE,ADMIN actor
+
+  subgraph SYS["Automotive Repair Workshop Management System"]
+    direction TB
+
+    subgraph G1["Xác thực và phân quyền"]
+      UC01(["UC-01 Đăng nhập và xác thực"]):::uc
+      UC11(["UC-11 Quản lý người dùng và phân quyền"]):::uc
+    end
+
+    subgraph G2["Hồ sơ khách hàng và phương tiện"]
+      UC02(["UC-02 Quản lý khách hàng và xe"]):::uc
+    end
+
+    subgraph G3["Luồng sửa chữa"]
+      UC03(["UC-03 Tiếp nhận xe, tạo phiếu"]):::uc
+      UC04(["UC-04 Phân công thợ máy"]):::uc
+      UC05(["UC-05 Chẩn đoán và đề xuất"]):::uc
+      UC08(["UC-08 Sửa chữa và cập nhật tiến độ"]):::uc
+    end
+
+    subgraph G4["Báo giá, phụ tùng, kho"]
+      UC06(["UC-06 Lập và duyệt báo giá"]):::uc
+      UC07(["UC-07 Ghi nhận phụ tùng và trừ kho"]):::uc
+    end
+
+    subgraph G5["Tài chính và vận hành"]
+      UC09(["UC-09 Lập hóa đơn và thu tiền"]):::uc
+      UC10(["UC-10 Ca làm việc và chốt sổ quỹ"]):::uc
+    end
+
+    subgraph G6["Chức năng bổ trợ trong mã nguồn"]
+      S1(["Đặt lịch hẹn, decision và check-in"]):::sup
+      S2(["Danh mục phụ tùng và nhập kho"]):::sup
+      S3(["Xem và đánh dấu thông báo"]):::sup
+    end
+  end
+
+  CUSTOMER --- UC01
+  RECEPTIONIST --- UC01
+  MANAGER --- UC01
+  MECHANIC --- UC01
+  WAREHOUSE --- UC01
+  ADMIN --- UC01
+
+  CUSTOMER --- UC02
+  RECEPTIONIST --- UC02
+  ADMIN --- UC02
+
+  RECEPTIONIST --- UC03
+  RECEPTIONIST --- UC04
+  MANAGER --- UC04
+  MECHANIC --- UC05
+  MECHANIC --- UC08
+  RECEPTIONIST --- UC08
+  MANAGER --- UC08
+
+  RECEPTIONIST --- UC06
+  CUSTOMER --- UC06
+  MECHANIC --- UC07
+  WAREHOUSE --- UC07
+  MANAGER --- UC07
+
+  RECEPTIONIST --- UC09
+  ADMIN --- UC09
+  CUSTOMER --- UC09
+  RECEPTIONIST --- UC10
+  ADMIN --- UC10
+  MANAGER --- UC10
+
+  CUSTOMER --- S1
+  RECEPTIONIST --- S1
+  MANAGER --- S1
+  WAREHOUSE --- S2
+  MANAGER --- S2
+  ADMIN --- S2
+  CUSTOMER --- S3
+  RECEPTIONIST --- S3
+
+  UC09 -.->|«include» cần ca đang open, ngược lại 409| UC10
+  UC06 -.->|«precondition» đã phân công, phiếu ở diagnosing| UC04
+  S1 -.->|«extend» check-in sinh phiếu mới| UC03

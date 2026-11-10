@@ -1,12 +1,15 @@
-FROM node:20-alpine
+FROM node:22-alpine
 
-WORKDIR /app
+WORKDIR /workspace
 
-COPY package*.json ./
+COPY backend/package*.json ./backend/
+WORKDIR /workspace/backend
 RUN npm ci --omit=dev
 
-COPY . .
+WORKDIR /workspace
+COPY backend/src ./backend/src
+COPY database ./database
 
 EXPOSE 3000
 
-CMD ["node", "src/server.js"]
+CMD ["node", "backend/src/server.js"]

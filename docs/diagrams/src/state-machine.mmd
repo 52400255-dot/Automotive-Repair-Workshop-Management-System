@@ -1,0 +1,47 @@
+---
+title: "State machine - vong doi phieu sua chua (7 trang thai)"
+---
+stateDiagram-v2
+  direction TB
+  [*] --> pending : create_repair_job_with_services<br/>hoặc lễ tân check-in lịch hẹn
+
+  pending --> diagnosing : INSERT mechanic_assignments,<br/>trigger trg_set_job_status_after_assignment
+  diagnosing --> estimated : estimate.service lập báo giá
+  estimated --> approved : khách duyệt<br/>PUT /api/v1/estimates/:id/approve
+  approved --> in_repair : thợ máy<br/>PUT /api/v1/repair-jobs/:id/status
+  in_repair --> completed : thợ máy<br/>PUT /api/v1/repair-jobs/:id/status
+
+  pending --> cancelled : hủy bởi lễ tân, quản lý, admin
+  diagnosing --> cancelled : hủy bởi lễ tân, quản lý, admin
+  estimated --> cancelled : khách từ chối báo giá<br/>PUT /api/v1/estimates/:id/reject
+  approved --> cancelled : hủy bởi lễ tân, quản lý, admin
+  in_repair --> cancelled : hủy bởi lễ tân, quản lý, admin
+
+  completed --> [*]
+  cancelled --> [*]
+
+  note right of pending
+    PUT /repair-jobs/:id/status chỉ trực tiếp sinh ra
+    in_repair, completed và cancelled.
+    pending, diagnosing, estimated, approved
+    do stored procedure, trigger và estimate.service dẫn dắt.
+  end note
+
+  note right of in_repair
+    Trong in_repair: thợ ghi nhận phụ tùng
+    (POST /api/v1/spare-parts/:id/deduct),
+    khách theo dõi qua portal và notifications.
+  end note
+
+  note right of completed
+    completed và cancelled là hai trạng thái kết thúc,
+    ALLOWED_TRANSITIONS không cho chuyển tiếp đi ra.
+    Không tồn tại trạng thái invoiced hay closed:
+    hóa đơn và thanh toán sống ở cột status của bảng invoices.
+  end note
+
+  note left of estimated
+    isValidStatusTransition() trả false nếu một trong hai
+    trạng thái không thuộc bảng và cho phép gửi lại
+    cùng trạng thái (idempotent no-op).
+  end note

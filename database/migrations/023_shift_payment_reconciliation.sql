@@ -8,15 +8,9 @@ ALTER TABLE shifts
   ADD COLUMN IF NOT EXISTS reconciled_pos_inflow NUMERIC(14, 2),
   ADD COLUMN IF NOT EXISTS pos_difference NUMERIC(14, 2);
 
-UPDATE shifts s SET
-  total_cash_inflow = COALESCE((SELECT SUM(ct.amount) FROM cash_transactions ct WHERE ct.shift_id=s.id AND ct.transaction_type='inflow' AND ct.payment_method='cash' AND ct.approval_status='approved'),0),
-  total_bank_inflow = COALESCE((SELECT SUM(ct.amount) FROM cash_transactions ct WHERE ct.shift_id=s.id AND ct.transaction_type='inflow' AND ct.payment_method='bank_transfer' AND ct.approval_status='approved'),0),
-  total_pos_inflow = COALESCE((SELECT SUM(ct.amount) FROM cash_transactions ct WHERE ct.shift_id=s.id AND ct.transaction_type='inflow' AND ct.payment_method='pos_card' AND ct.approval_status='approved'),0),
-  total_cash_outflow = COALESCE((SELECT SUM(ct.amount) FROM cash_transactions ct WHERE ct.shift_id=s.id AND ct.transaction_type='outflow' AND ct.payment_method='cash' AND ct.approval_status='approved'),0),
-  cash_order_count = COALESCE((SELECT COUNT(*) FROM cash_transactions ct WHERE ct.shift_id=s.id AND ct.transaction_type='inflow' AND ct.category='repair_payment' AND ct.payment_method='cash' AND ct.approval_status='approved'),0),
-  bank_transfer_order_count = COALESCE((SELECT COUNT(*) FROM cash_transactions ct WHERE ct.shift_id=s.id AND ct.transaction_type='inflow' AND ct.category='repair_payment' AND ct.payment_method='bank_transfer' AND ct.approval_status='approved'),0),
-  pos_order_count = COALESCE((SELECT COUNT(*) FROM cash_transactions ct WHERE ct.shift_id=s.id AND ct.transaction_type='inflow' AND ct.category='repair_payment' AND ct.payment_method='pos_card' AND ct.approval_status='approved'),0);
-
+-- Remove the legacy close constraint before backfilling totals. Older databases
+-- may contain closed shifts that predate the current reconciliation rules, and
+-- even a NOT VALID check is enforced when an existing row is updated.
 DO $$
 DECLARE constraint_row RECORD;
 BEGIN
@@ -31,6 +25,15 @@ BEGIN
     ALTER TABLE shifts DROP CONSTRAINT shifts_closed_requires_cash_count;
   END IF;
 END $$;
+
+UPDATE shifts s SET
+  total_cash_inflow = COALESCE((SELECT SUM(ct.amount) FROM cash_transactions ct WHERE ct.shift_id=s.id AND ct.transaction_type='inflow' AND ct.payment_method='cash' AND ct.approval_status='approved'),0),
+  total_bank_inflow = COALESCE((SELECT SUM(ct.amount) FROM cash_transactions ct WHERE ct.shift_id=s.id AND ct.transaction_type='inflow' AND ct.payment_method='bank_transfer' AND ct.approval_status='approved'),0),
+  total_pos_inflow = COALESCE((SELECT SUM(ct.amount) FROM cash_transactions ct WHERE ct.shift_id=s.id AND ct.transaction_type='inflow' AND ct.payment_method='pos_card' AND ct.approval_status='approved'),0),
+  total_cash_outflow = COALESCE((SELECT SUM(ct.amount) FROM cash_transactions ct WHERE ct.shift_id=s.id AND ct.transaction_type='outflow' AND ct.payment_method='cash' AND ct.approval_status='approved'),0),
+  cash_order_count = COALESCE((SELECT COUNT(*) FROM cash_transactions ct WHERE ct.shift_id=s.id AND ct.transaction_type='inflow' AND ct.category='repair_payment' AND ct.payment_method='cash' AND ct.approval_status='approved'),0),
+  bank_transfer_order_count = COALESCE((SELECT COUNT(*) FROM cash_transactions ct WHERE ct.shift_id=s.id AND ct.transaction_type='inflow' AND ct.category='repair_payment' AND ct.payment_method='bank_transfer' AND ct.approval_status='approved'),0),
+  pos_order_count = COALESCE((SELECT COUNT(*) FROM cash_transactions ct WHERE ct.shift_id=s.id AND ct.transaction_type='inflow' AND ct.category='repair_payment' AND ct.payment_method='pos_card' AND ct.approval_status='approved'),0);
 
 ALTER TABLE shifts
   ADD CONSTRAINT shifts_closed_requires_cash_count

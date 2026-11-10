@@ -1,0 +1,253 @@
+---
+title: "Class diagram - 23 bang PostgreSQL, 5 nhom nghiep vu"
+---
+classDiagram
+  direction LR
+
+  class users {
+    +id : BIGINT PK identity
+    +full_name : VARCHAR
+    +email : VARCHAR UNIQUE
+    +password_hash : TEXT
+    +role : VARCHAR (6 gia tri)
+    +created_at : TIMESTAMPTZ
+    +login()
+    +changePassword()
+  }
+  class customers {
+    +id : BIGINT PK
+    +user_id : BIGINT FK UNIQUE
+    +full_name : VARCHAR
+    +phone : VARCHAR
+    +email : VARCHAR
+    +getRepairHistory()
+  }
+  class vehicles {
+    +id : BIGINT PK
+    +customer_id : BIGINT FK
+    +license_plate : VARCHAR UNIQUE
+    +brand : VARCHAR
+    +model : VARCHAR
+    +manufacture_year : INTEGER
+    +odometer : INTEGER
+  }
+  class services {
+    +id : BIGINT PK
+    +service_code : VARCHAR UNIQUE
+    +service_name : VARCHAR
+    +unit_price : NUMERIC
+  }
+  class spare_parts {
+    +id : BIGINT PK
+    +part_code : VARCHAR UNIQUE
+    +part_name : VARCHAR
+    +unit : VARCHAR
+    +stock_quantity : NUMERIC
+    +unit_price : NUMERIC
+    +purchase_price : NUMERIC
+    +min_stock : NUMERIC
+    +findLowStock()
+  }
+
+  class repair_jobs {
+    +id : BIGINT PK identity
+    +vehicle_id : BIGINT FK
+    +receptionist_id : BIGINT FK
+    +customer_request : TEXT
+    +status : VARCHAR (7 gia tri)
+    +received_at : TIMESTAMPTZ
+    +completed_at : TIMESTAMPTZ
+    +assignMechanic()
+    +updateStatus()
+  }
+  class mechanic_assignments {
+    +id : BIGINT PK
+    +repair_job_id : BIGINT FK
+    +mechanic_id : BIGINT FK
+    +assigned_by : BIGINT FK
+    +status : VARCHAR
+    +assigned_at : TIMESTAMPTZ
+  }
+  class diagnoses {
+    +id : BIGINT PK
+    +repair_job_id : BIGINT FK
+    +mechanic_id : BIGINT FK
+    +diagnosis_result : TEXT
+    +repair_suggestion : TEXT
+    +diagnosed_at : TIMESTAMPTZ
+  }
+  class repair_details {
+    +id : BIGINT PK
+    +repair_job_id : BIGINT FK
+    +service_id : BIGINT FK
+    +notes : TEXT
+  }
+  class repair_tasks {
+    +id : BIGINT PK
+    +repair_job_id : BIGINT FK
+    +task_name : VARCHAR
+    +status : VARCHAR
+    +started_at : TIMESTAMPTZ
+    +completed_at : TIMESTAMPTZ
+  }
+  class used_parts {
+    +id : BIGINT PK
+    +repair_job_id : BIGINT FK
+    +spare_part_id : BIGINT FK
+    +quantity : NUMERIC
+    +unit_price_at_time : NUMERIC
+    +reverseUsage()
+  }
+
+  class estimates {
+    +id : BIGINT PK
+    +repair_job_id : BIGINT FK
+    +status : VARCHAR (draft sent approved rejected)
+    +total_amount : NUMERIC
+    +approved_at : TIMESTAMPTZ
+    +approve()
+    +reject()
+  }
+  class estimate_details {
+    +id : BIGINT PK
+    +estimate_id : BIGINT FK
+    +item_type : VARCHAR (labor part other)
+    +description : VARCHAR
+    +quantity : NUMERIC
+    +unit_price : NUMERIC
+  }
+  class invoices {
+    +id : BIGINT PK
+    +repair_job_id : BIGINT FK
+    +estimate_id : BIGINT FK nullable
+    +status : VARCHAR (draft issued paid cancelled)
+    +total_amount : NUMERIC
+    +issued_at : TIMESTAMPTZ
+    +markPaid()
+  }
+  class invoice_details {
+    +id : BIGINT PK
+    +invoice_id : BIGINT FK
+    +description : VARCHAR
+    +quantity : NUMERIC
+    +unit_price : NUMERIC
+  }
+  class payments {
+    +id : BIGINT PK
+    +invoice_id : BIGINT FK
+    +amount : NUMERIC
+    +payment_method : VARCHAR (cash bank_transfer card)
+    +paid_at : TIMESTAMPTZ
+  }
+
+  class inventory_movements {
+    +id : BIGINT PK
+    +spare_part_id : BIGINT FK
+    +recorded_by : BIGINT FK
+    +movement_type : VARCHAR
+    +quantity : NUMERIC
+    +recorded_at : TIMESTAMPTZ
+  }
+  class inventory_payables {
+    +id : BIGINT PK
+    +inventory_movement_id : BIGINT FK UNIQUE
+    +spare_part_id : BIGINT FK
+    +source_shift_id : BIGINT FK
+    +amount : NUMERIC
+    +amount_paid : NUMERIC
+    +status : VARCHAR (open paid)
+  }
+
+  class shifts {
+    +id : BIGINT PK
+    +shift_name : VARCHAR
+    +work_date : DATE
+    +status : VARCHAR (open closed)
+    +opening_cash : NUMERIC
+    +actual_closing_cash : NUMERIC
+    +expected_closing_cash : NUMERIC
+    +cash_difference : NUMERIC
+    +total_cash_inflow : NUMERIC
+    +total_cash_outflow : NUMERIC
+    +reconciled_bank_inflow : NUMERIC
+    +reconciled_pos_inflow : NUMERIC
+    +handover_cash : NUMERIC
+    +deposited_cash : NUMERIC
+    +opened_by : BIGINT FK
+    +closed_by : BIGINT FK
+    +openShift()
+    +closeShift()
+  }
+  class shift_settings {
+    +singleton : BOOLEAN PK
+    +default_opening_cash : NUMERIC
+    +expense_approval_limit : NUMERIC
+    +updated_by : BIGINT FK
+  }
+  class cash_transactions {
+    +id : BIGINT PK
+    +shift_id : BIGINT FK
+    +transaction_type : VARCHAR (inflow outflow)
+    +category : VARCHAR
+    +amount : NUMERIC
+    +payment_method : VARCHAR
+    +reference_type : VARCHAR
+    +reference_id : BIGINT
+    +approval_status : VARCHAR (pending approved rejected)
+    +approved_by : BIGINT FK
+    +created_by : BIGINT FK
+  }
+  class service_appointments {
+    +id : BIGINT PK
+    +customer_id : BIGINT FK
+    +vehicle_id : BIGINT FK
+    +requested_by : BIGINT FK
+    +requested_for : TIMESTAMPTZ
+    +confirmed_for : TIMESTAMPTZ
+    +status : VARCHAR (6 gia tri)
+    +repair_job_id : BIGINT FK UNIQUE
+    +propose()
+    +checkIn()
+  }
+  class customer_notifications {
+    +id : BIGINT PK
+    +user_id : BIGINT FK
+    +event_key : VARCHAR
+    +title : VARCHAR
+    +message : TEXT
+    +entity_type : VARCHAR
+    +read_at : TIMESTAMPTZ
+  }
+
+  users "1" --> "0..1" customers : "ho so khach hang"
+  customers "1" --> "*" vehicles : "so huu"
+  vehicles "1" --> "*" repair_jobs : "duoc tiep nhan"
+  users "1" --> "*" repair_jobs : "le tan tiep nhan"
+  repair_jobs "1" --> "*" mechanic_assignments : "phan cong"
+  users "1" --> "*" mechanic_assignments : "tho duoc giao"
+  repair_jobs "1" --> "*" diagnoses : "ket qua chan doan"
+  users "1" --> "*" diagnoses : "tho chan doan"
+  repair_jobs "1" --> "*" repair_details : "dich vu du kien"
+  services "1" --> "*" repair_details : "danh muc"
+  repair_jobs "1" --> "*" repair_tasks : "cong viec"
+  repair_jobs "1" --> "*" used_parts : "phu tung da dung"
+  spare_parts "1" --> "*" used_parts : "duoc xuat"
+  repair_jobs "1" --> "*" estimates : "bao gia"
+  estimates "1" --> "1..*" estimate_details : "hang muc"
+  repair_jobs "1" --> "*" invoices : "quyet toan"
+  estimates "0..1" --> "*" invoices : "can cu bao gia"
+  invoices "1" --> "1..*" invoice_details : "chi tiet, gom dong thue"
+  invoices "1" --> "*" payments : "thanh toan"
+  spare_parts "1" --> "*" inventory_movements : "bien dong kho"
+  users "1" --> "*" inventory_movements : "nguoi ghi nhan"
+  inventory_movements "1" --> "0..1" inventory_payables : "cong no nhap kho"
+  spare_parts "1" --> "*" inventory_payables : "hang cong no"
+  shifts "1" --> "*" cash_transactions : "so quy ca"
+  users "1" --> "*" shifts : "mo ca"
+  shifts "0..1" --> "*" inventory_payables : "ca nguon"
+  users "1" --> "*" shift_settings : "cap nhat"
+  users "1" --> "*" cash_transactions : "duyet chi"
+  customers "1" --> "*" service_appointments : "dat lich"
+  vehicles "1" --> "*" service_appointments : "xe hen"
+  service_appointments "0..1" --> "0..1" repair_jobs : "check-in sinh phieu"
+  users "1" --> "*" customer_notifications : "nhan thong bao"
