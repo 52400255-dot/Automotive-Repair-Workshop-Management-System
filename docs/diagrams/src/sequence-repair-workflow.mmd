@@ -1,0 +1,99 @@
+---
+title: "Sequence diagram - luong sua chua"
+---
+sequenceDiagram
+  autonumber
+  actor KH as Khách hàng
+  actor LT as Lễ tân
+  actor TM as Thợ máy
+  actor TK as Nhân viên kho
+  participant FE as Frontend (React)
+  participant BE as Backend (Express)
+  participant DB as PostgreSQL
+
+  Note over KH,DB: 1. Đăng nhập và xác thực
+  LT ->> FE: nhập email và mật khẩu
+  FE ->> BE: POST /api/v1/auth/login
+  BE ->> DB: SELECT users theo email
+  DB -->> BE: bản ghi users
+  BE -->> FE: 200 OK kèm JWT và role
+  Note over BE: sai email hay sai mật khẩu đều trả 401<br/>cùng thông báo "Email hoặc mật khẩu không đúng"
+
+  Note over KH,DB: 2. Tiếp nhận xe và khởi tạo phiếu
+  LT ->> FE: chọn khách hàng, chọn xe, triệu chứng, dịch vụ dự kiến
+  FE ->> BE: POST /api/v1/repair-jobs { vehicleId, customerRequest, odometer, serviceItems }
+  BE ->> DB: CALL create_repair_job_with_services(...) trong BEGIN/COMMIT
+  DB -->> BE: repair_jobs.id (GENERATED ALWAYS AS IDENTITY), status = pending
+  BE -->> FE: 201 Created, phiếu hiện trên dashboard
+
+  Note over KH,DB: 3. Phân công thợ máy
+  LT ->> FE: chọn thợ máy từ GET /api/v1/repair-jobs/mechanics
+  FE ->> BE: PUT /api/v1/repair-jobs/:id/assign
+  BE ->> DB: INSERT mechanic_assignments (không đổi status trong service)
+  DB ->> DB: trigger trg_set_job_status_after_assignment
+  Note right of DB: status chuyển pending sang diagnosing<br/>ngay sau bản ghi phân công đầu tiên
+  BE -->> FE: 200 OK
+
+  Note over KH,DB: 4. Chẩn đoán
+  TM ->> FE: nhập kết quả chẩn đoán và đề xuất
+  FE ->> BE: PUT /api/v1/repair-jobs/:id/diagnosis { diagnosis, recommendations }
+  BE ->> DB: INSERT diagnoses (bảng riêng, không có cột diagnosis trong repair_jobs)
+  BE -->> FE: 200 OK
+
+  Note over KH,DB: 5. Lập báo giá
+  LT ->> FE: thêm hạng mục labor và part
+  FE ->> BE: POST /api/v1/estimates { repairJobId, items[] }
+  BE ->> DB: INSERT estimates và estimate_details, tổng tính theo đơn vị cent
+  Note right of BE: estimate chỉ lập được khi phiếu ở diagnosing,<br/>nên phân công luôn phải diễn ra trước báo giá
+  BE -->> FE: 201 Created, status = sent
+  KH ->> FE: xem báo giá qua GET /api/v1/estimates/my
+  FE ->> BE: GET /api/v1/estimates/:id
+
+  alt Khách hàng duyệt báo giá
+    KH ->> FE: nhấn "Duyệt báo giá"
+    FE ->> BE: PUT /api/v1/estimates/:id/approve
+    Note over BE,TK: hai route approve và reject đều chỉ authorize('customer')
+    BE ->> DB: UPDATE estimates status = approved
+    BE ->> DB: UPDATE repair_jobs status = approved
+    BE -->> FE: 200 OK
+  else Khách hàng từ chối báo giá
+    KH ->> FE: nhấn "Từ chối báo giá"
+    FE ->> BE: PUT /api/v1/estimates/:id/reject
+    BE ->> DB: UPDATE estimates status = rejected
+    BE ->> DB: UPDATE repair_jobs status = cancelled
+    BE -->> FE: 200 OK
+  end
+
+  Note over KH,DB: 6. Sửa chữa và trừ phụ tùng
+  TM ->> FE: nhấn "Bắt đầu sửa chữa"
+  FE ->> BE: PUT /api/v1/repair-jobs/:id/status { status: 'in_repair' }
+  BE ->> DB: kiểm tra ALLOWED_TRANSITIONS rồi UPDATE repair_jobs
+  TM ->> FE: ghi nhận phụ tùng đã dùng
+  FE ->> BE: POST /api/v1/spare-parts/:id/deduct { repairJobId, quantity }
+  BE ->> DB: BEGIN, SELECT spare_parts ... FOR UPDATE
+  BE ->> DB: INSERT used_parts, INSERT inventory_movements, UPDATE stock_quantity
+  Note over TK,DB: dưới min_stock thì GET /api/v1/spare-parts/low-stock<br/>trả danh mục cần nhập, nhập kho bằng POST /api/v1/spare-parts/:id/import
+  BE -->> FE: 201 Created
+  TM ->> FE: nhấn "Hoàn thành sửa chữa"
+  FE ->> BE: PUT /api/v1/repair-jobs/:id/status { status: 'completed' }
+  BE ->> DB: UPDATE repair_jobs status = completed
+
+  Note over KH,DB: 7. Hóa đơn và thanh toán
+  LT ->> FE: nhấn "Lập hóa đơn" cho phiếu completed
+  FE ->> BE: POST /api/v1/invoices { repairJobId }
+  BE ->> DB: BEGIN, INSERT invoices status = issued
+  BE ->> DB: INSERT invoice_details cho nhân công, từng phụ tùng và một dòng thuế GTGT
+  BE -->> FE: 201 Created kèm total_amount
+  LT ->> FE: nhập phương thức, số tiền và mã truy thu
+  FE ->> BE: PUT /api/v1/invoices/:id/pay { paymentMethod, amount, traceCode }
+  BE ->> DB: kiểm tra phải có ca đang open
+  alt Chưa có ca đang open
+    BE -->> FE: 409 "Cần mở ca làm việc trước khi ghi nhận thanh toán"
+  else Có ca đang open
+    BE ->> DB: BEGIN, INSERT payments
+    BE ->> DB: INSERT cash_transactions vào ca đang mở
+    BE ->> DB: UPDATE invoices status = paid
+    BE ->> DB: COMMIT
+    BE -->> FE: 200 OK, in biên lai
+    Note over BE,DB: số tiền phải khớp toàn bộ total_amount<br/>(so sánh theo cent), chưa hỗ trợ thanh toán một phần
+  end

@@ -42,29 +42,32 @@ Yêu cầu: Docker Desktop có Docker Compose, hoặc Node.js 22+ và PostgreSQL
 
 ### Docker Compose
 
-Tạo file `.env` từ mẫu và điền thông tin database cùng JWT secret:
+Mở Docker Desktop, đợi Docker Engine chạy, rồi mở PowerShell tại thư mục dự án. Chỉ tạo `.env` nếu dự án chưa có file này; điền `DB_USER`, `DB_PASSWORD` và `JWT_SECRET` (chuỗi ngẫu nhiên tối thiểu 32 ký tự):
 
 ```powershell
-Copy-Item .env.example .env
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
+notepad .env
 ```
 
-Đặt `DB_USER`, `DB_PASSWORD`, `DB_NAME` và `JWT_SECRET` trong `.env`, sau đó chạy:
+Khởi động toàn bộ dịch vụ và theo dõi log:
 
-```bash
+```powershell
 docker compose up -d --build
+docker compose ps
+docker compose logs -f db-setup backend frontend
 ```
 
-- Frontend: [http://localhost:8080](http://localhost:8080)
-- Backend health check: [http://localhost:3000/api/health](http://localhost:3000/api/health)
+Mở frontend tại [http://localhost:8080](http://localhost:8080). Kiểm tra API qua [http://localhost:8080/api/health](http://localhost:8080/api/health); cổng backend trực tiếp là giá trị `PORT` trong `.env` (mặc định `3000`). Compose đợi PostgreSQL khỏe, chạy migrations và seeds trong `db-setup`, rồi mới khởi động backend và frontend. Vì vậy đăng nhập demo đã có dữ liệu ngay cả khi dùng volume database cũ.
 
-PostgreSQL chạy ở cổng `5432`. Trên database volume mới, Docker chạy các file trong `database/migrations` khi khởi tạo; seeds không tự chạy. Để áp dụng migrations trên database đã có sẵn hoặc nạp dữ liệu demo, cài dependency backend và chạy setup script từ thư mục gốc:
+Đăng nhập mẫu (mật khẩu chung `123456`):
 
-```bash
-npm ci --prefix backend
-node backend/src/scripts/setupDb.js
-```
+- Admin: `admin@workshop.vn`
+- Lễ tân: `dung.receptionist@workshop.vn`
+- Thợ máy: `hieu.mechanic@workshop.vn`
+- Quản lý dịch vụ: `minh.manager@workshop.vn`
+- Nhân viên kho: `ngoc.warehouse@workshop.vn`
 
-Script kết nối theo `.env`, áp dụng migrations và nạp seeds. Không dùng tùy chọn `--reset` trên database có dữ liệu cần giữ.
+PostgreSQL được publish ở cổng `5432`. Dừng dịch vụ mà vẫn giữ dữ liệu bằng `docker compose down`; khởi động lại bằng `docker compose up -d`. Không dùng `docker compose down -v` nếu muốn giữ database.
 
 ### Chạy frontend và backend riêng
 
