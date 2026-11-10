@@ -9,7 +9,6 @@ const SHIFT_OPTIONS = [
 ];
 const CATEGORIES = [
   ['spare_part_purchase', 'Mua phụ tùng'],
-  ['inventory_import', 'Thanh toán nhập kho'],
   ['operational_expense', 'Chi phí vận hành'],
   ['other', 'Khoản chi khác'],
 ];
@@ -51,6 +50,36 @@ function TransactionForm({ shiftId, approvalLimit, onDone, onCancel }) {
       </div>
       <p className="shift-policy-note">Khoản chi từ {money(approvalLimit)} cần quản lý dịch vụ phê duyệt trước khi tính vào quỹ và chốt ca.</p>
       <div className="modal-actions"><button className="btn btn-outline" type="button" onClick={onCancel} disabled={busy}>Hủy</button><button className="btn btn-primary" type="submit" disabled={busy}>{busy ? 'Đang ghi...' : 'Ghi phiếu chi'}</button></div>
+    </form>
+  );
+}
+
+function ManagerCashForm({ type, availableCash, onDone, onCancel }) {
+  const [amount, setAmount] = useState('');
+  const [description, setDescription] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const isPayin = type === 'inflow';
+  async function submit(event) {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      await api.post('/shifts/cash-movements', { type, amount: Number(amount), description: description.trim() });
+      onDone(isPayin ? 'Đã ghi nhận pay-in vào quỹ ca.' : 'Đã ghi nhận payout từ quỹ ca.');
+    } catch (err) { setError(err.response?.data?.message || 'Không ghi được giao dịch quỹ.'); }
+    finally { setBusy(false); }
+  }
+  return (
+    <form className="shift-inline-form" onSubmit={submit}>
+      <div className="shift-form-heading"><div><p className="eyebrow">{isPayin ? 'TIỀN BỔ SUNG VÀO QUỸ' : 'TIỀN CHI RA KHỎI QUỸ'}</p><h2>{isPayin ? 'Pay-in' : 'Payout'}</h2></div><button className="btn btn-outline" type="button" onClick={onCancel} aria-label="Đóng">×</button></div>
+      {error && <div className="alert alert-error" role="alert">{error}</div>}
+      <div className="shift-form-grid">
+        <div className="form-group"><label htmlFor="manager-cash-amount">Số tiền</label><input id="manager-cash-amount" className="form-control" type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} required /></div>
+        <div className="form-group"><label htmlFor="manager-cash-description">Nội dung</label><input id="manager-cash-description" className="form-control" maxLength="500" value={description} onChange={(event) => setDescription(event.target.value)} required /></div>
+      </div>
+      <p className="shift-policy-note">{isPayin ? 'Ghi nhận tiền mặt được bổ sung trực tiếp vào quỹ ca.' : `Quỹ hiện có ${money(availableCash)}. Không thể chi vượt quá số dư.`}</p>
+      <div className="modal-actions"><button className="btn btn-outline" type="button" onClick={onCancel} disabled={busy}>Hủy</button><button className="btn btn-primary" type="submit" disabled={busy}>{busy ? 'Đang ghi...' : isPayin ? 'Ghi pay-in' : 'Ghi payout'}</button></div>
     </form>
   );
 }
@@ -99,7 +128,9 @@ function CloseShiftForm({ shift, onDone, onCancel }) {
   const posExpected = Number(shift.total_pos_inflow || 0);
   const bankDifference = bankReconciled === '' ? null : Number(bankReconciled) - bankExpected;
   const posDifference = posReconciled === '' ? null : Number(posReconciled) - posExpected;
-  const deposited = Math.max(0, Number(shift.total_cash_inflow || 0) - Number(shift.opening_cash || 0));
+  const deposited = actualCash === ''
+    ? Number(shift.current_cash || 0) - Number(shift.opening_cash || 0)
+    : actual - Number(shift.opening_cash || 0);
   const hasDifference = [difference, bankDifference, posDifference].some((value) => value !== null && Math.abs(value) > 0.009);
   const allReconciled = actualCash !== '' && bankReconciled !== '' && posReconciled !== '';
 
@@ -122,7 +153,7 @@ function CloseShiftForm({ shift, onDone, onCancel }) {
       <div className="shift-form-heading"><div><p className="eyebrow">ĐỐI SOÁT THEO PHƯƠNG THỨC</p><h2>Chốt ca</h2></div><button className="btn btn-outline" type="button" onClick={onCancel} aria-label="Đóng">×</button></div>
       {error && <div className="alert alert-error" role="alert">{error}</div>}
       <div className="shift-closing-grid">
-        <section className="shift-closing-method"><div><span>TIỀN MẶT · {shift.cash_order_count || 0} đơn</span><strong>{money(shift.total_cash_inflow)}</strong></div><div className="form-group"><label htmlFor="actual-cash">Tiền mặt thực tế kiểm đếm</label><input id="actual-cash" className="form-control" type="number" min="0" step="0.01" value={actualCash} onChange={(e) => setActualCash(e.target.value)} required /></div><div className="shift-closing-result"><span>Quỹ lý thuyết</span><b>{money(expected)}</b></div><div className="shift-closing-result"><span>{deposited < 0 ? 'Cần bù két (thu mặt − tiền gốc)' : 'Nộp két (thu mặt − tiền gốc)'}</span><b>{money(deposited)}</b></div><strong className={difference === null ? '' : Math.abs(difference) < 0.009 ? 'shift-match' : 'shift-difference'}>{difference === null ? 'Chưa kiểm đếm' : Math.abs(difference) < 0.009 ? 'Khớp quỹ' : `${difference > 0 ? 'Thừa' : 'Thiếu'} ${money(Math.abs(difference))}`}</strong></section>
+        <section className="shift-closing-method"><div><span>TIỀN MẶT · {shift.cash_order_count || 0} đơn</span><strong>{money(shift.total_cash_inflow)}</strong></div><div className="shift-closing-result"><span>Pay-in bổ sung quỹ</span><b>{money(shift.cash_replenishment_total)}</b></div><div className="form-group"><label htmlFor="actual-cash">Tiền mặt thực tế kiểm đếm</label><input id="actual-cash" className="form-control" type="number" min="0" step="0.01" value={actualCash} onChange={(e) => setActualCash(e.target.value)} required /></div><div className="shift-closing-result"><span>Quỹ lý thuyết</span><b>{money(expected)}</b></div><div className="shift-closing-result"><span>{deposited < 0 ? 'Cần bù két (thu mặt − tiền gốc)' : 'Nộp két (thu mặt − tiền gốc)'}</span><b>{money(deposited)}</b></div><strong className={difference === null ? '' : Math.abs(difference) < 0.009 ? 'shift-match' : 'shift-difference'}>{difference === null ? 'Chưa kiểm đếm' : Math.abs(difference) < 0.009 ? 'Khớp quỹ' : `${difference > 0 ? 'Thừa' : 'Thiếu'} ${money(Math.abs(difference))}`}</strong></section>
         <section className="shift-closing-method"><div><span>CHUYỂN KHOẢN · {shift.bank_transfer_order_count || 0} đơn</span><strong>{money(bankExpected)}</strong></div><div className="form-group"><label htmlFor="bank-reconciled">Số tiền đã đối soát sao kê</label><input id="bank-reconciled" className="form-control" type="number" min="0" step="0.01" value={bankReconciled} onChange={(e) => setBankReconciled(e.target.value)} required /></div><div className="shift-closing-result"><span>Chênh lệch chuyển khoản</span><b className={bankDifference === null ? '' : Math.abs(bankDifference) < 0.009 ? 'shift-match' : 'shift-difference'}>{bankDifference === null ? 'Chưa đối soát' : money(bankDifference)}</b></div></section>
         <section className="shift-closing-method"><div><span>ATM / POS · {shift.pos_order_count || 0} đơn</span><strong>{money(posExpected)}</strong></div><div className="form-group"><label htmlFor="pos-reconciled">Số tiền đã đối soát ATM/POS</label><input id="pos-reconciled" className="form-control" type="number" min="0" step="0.01" value={posReconciled} onChange={(e) => setPosReconciled(e.target.value)} required /></div><div className="shift-closing-result"><span>Chênh lệch ATM/POS</span><b className={posDifference === null ? '' : Math.abs(posDifference) < 0.009 ? 'shift-match' : 'shift-difference'}>{posDifference === null ? 'Chưa đối soát' : money(posDifference)}</b></div></section>
       </div>
@@ -143,8 +174,11 @@ export default function ShiftManagementPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [payables, setPayables] = useState([]);
+  const [payableError, setPayableError] = useState('');
   const canOperate = roleCanOperate(user?.role);
   const canApprove = ['service_manager', 'admin'].includes(user?.role);
+  const canManageCash = canApprove;
 
   const reload = useCallback(async () => {
     setError('');
@@ -152,9 +186,18 @@ export default function ShiftManagementPage() {
       const response = await api.get('/shifts/current');
       setState(response.data.data);
       if (!response.data.data.current) setOpeningCash(String(response.data.data.settings?.default_opening_cash || 0));
+      if (canApprove) {
+        try {
+          const payableResponse = await api.get('/shifts/inventory-payables');
+          setPayables(payableResponse.data.data || []);
+          setPayableError('');
+        } catch (err) { setPayableError(err.response?.data?.message || 'Không tải được công nợ nhập kho.'); }
+      } else {
+        setPayables([]);
+      }
     } catch (err) { setError(err.response?.data?.message || 'Không tải được ca làm việc hiện tại.'); }
     finally { setLoading(false); }
-  }, []);
+  }, [canApprove]);
 
   useEffect(() => {
     let active = true;
@@ -165,13 +208,21 @@ export default function ShiftManagementPage() {
         if (!active) return;
         setState(response.data.data);
         if (!response.data.data.current) setOpeningCash(String(response.data.data.settings?.default_opening_cash || 0));
+        if (canApprove) {
+          try {
+            const payableResponse = await api.get('/shifts/inventory-payables');
+            if (active) setPayables(payableResponse.data.data || []);
+          } catch (err) {
+            if (active) setPayableError(err.response?.data?.message || 'Không tải được công nợ nhập kho.');
+          }
+        }
       } catch (err) {
         if (active) setError(err.response?.data?.message || 'Không tải được ca làm việc hiện tại.');
       } finally { if (active) setLoading(false); }
     }
     loadCurrentShift();
     return () => { active = false; };
-  }, []);
+  }, [canApprove]);
 
   async function openShift(event) {
     event.preventDefault();
@@ -193,6 +244,17 @@ export default function ShiftManagementPage() {
       setNotice(approved ? 'Đã phê duyệt phiếu chi.' : 'Đã từ chối phiếu chi.');
       await reload();
     } catch (err) { setError(err.response?.data?.message || 'Không cập nhật được phiếu chi.'); }
+    finally { setBusy(false); }
+  }
+
+  async function settlePayable(payable, paymentSource = 'cash') {
+    setBusy(true);
+    setError('');
+    try {
+      await api.post(`/shifts/inventory-payables/${payable.id}/payout`, { paymentSource });
+      setNotice(paymentSource === 'external' ? 'Admin đã tất toán công nợ nhập kho bằng nguồn ngoài.' : 'Đã payout công nợ nhập kho từ quỹ ca.');
+      await reload();
+    } catch (err) { setError(err.response?.data?.message || 'Không thanh toán được công nợ nhập kho.'); }
     finally { setBusy(false); }
   }
 
@@ -223,23 +285,32 @@ export default function ShiftManagementPage() {
       {!shift && !canOperate && <div className="shift-empty"><h2>Chưa có ca đang mở</h2><p>Lễ tân hoặc quản trị viên cần mở ca trước khi bắt đầu thu chi.</p></div>}
 
       {shift && <>
-        <section className="shift-current-heading"><div><p className="eyebrow">{shift.work_date && new Date(`${shift.work_date}T00:00:00`).toLocaleDateString('vi-VN')}</p><h2>{shift.shift_name === 'ca_1' ? 'Ca 1' : 'Ca 2'} <span>· Đang mở</span></h2><p>Mở lúc {new Date(shift.start_time).toLocaleString('vi-VN')} · Người mở ca: {shift.opened_by_name || `#${shift.opened_by}`}</p></div>{canOperate && <div className="shift-header-actions"><button className="btn btn-outline" type="button" onClick={() => setPanel(panel === 'expense' ? '' : 'expense')}>+ Ghi phiếu chi</button><button className="btn btn-primary" type="button" onClick={() => setPanel(panel === 'close' ? '' : 'close')}>Đóng ca</button></div>}</section>
+        <section className="shift-current-heading"><div><p className="eyebrow">{shift.work_date && new Date(`${shift.work_date}T00:00:00`).toLocaleDateString('vi-VN')}</p><h2>{shift.shift_name === 'ca_1' ? 'Ca 1' : 'Ca 2'} <span>· Đang mở</span></h2><p>Mở lúc {new Date(shift.start_time).toLocaleString('vi-VN')} · Người mở ca: {shift.opened_by_name || `#${shift.opened_by}`}</p></div><div className="shift-header-actions">{canOperate && <>{user?.role === 'receptionist' && <button className="btn btn-outline" type="button" onClick={() => setPanel(panel === 'expense' ? '' : 'expense')}>+ Ghi phiếu chi</button>}<button className="btn btn-primary" type="button" onClick={() => setPanel(panel === 'close' ? '' : 'close')}>Đóng ca</button></>}{canManageCash && <><button className="btn btn-outline" type="button" onClick={() => setPanel(panel === 'payin' ? '' : 'payin')}>Pay-in</button><button className="btn btn-outline" type="button" onClick={() => setPanel(panel === 'payout' ? '' : 'payout')}>Payout</button></>}</div></section>
         <div className="shift-metrics">
           <Metric label="Tiền gốc ban đầu" value={shift.opening_cash} />
-          <Metric label="Tiền mặt" value={shift.total_cash_inflow} note={`${shift.cash_order_count || 0} đơn`} />
+          <Metric label="Thu tiền mặt" value={shift.total_cash_inflow} note={`${shift.cash_order_count || 0} đơn`} />
+          <Metric label="Pay-in vào quỹ" value={shift.cash_replenishment_total} />
           <Metric label="Chuyển khoản" value={shift.total_bank_inflow} note={`${shift.bank_transfer_order_count || 0} đơn`} />
           <Metric label="ATM / POS" value={shift.total_pos_inflow} note={`${shift.pos_order_count || 0} đơn`} />
           <Metric label="Chi tiền mặt đã duyệt" value={shift.total_cash_outflow} />
           <Metric label="Quỹ lý thuyết" value={shift.current_cash} note="Tiền gốc + tiền mặt thu − chi tiền mặt" />
         </div>
 
-        {panel === 'expense' && canOperate && <TransactionForm shiftId={shift.id} approvalLimit={state?.settings?.expense_approval_limit} onCancel={() => setPanel('')} onDone={async () => { setPanel(''); setNotice('Đã ghi phiếu chi. Các khoản chi lớn đang chờ quản lý duyệt.'); await reload(); }} />}
+        {panel === 'expense' && user?.role === 'receptionist' && <TransactionForm shiftId={shift.id} approvalLimit={state?.settings?.expense_approval_limit} onCancel={() => setPanel('')} onDone={async () => { setPanel(''); setNotice('Đã ghi phiếu chi. Các khoản chi lớn đang chờ quản lý duyệt.'); await reload(); }} />}
+        {panel === 'payin' && canManageCash && <ManagerCashForm type="inflow" availableCash={shift.payout_cash_available} onCancel={() => setPanel('')} onDone={async (message) => { setPanel(''); setNotice(message); await reload(); }} />}
+        {panel === 'payout' && canManageCash && <ManagerCashForm type="outflow" availableCash={shift.payout_cash_available} onCancel={() => setPanel('')} onDone={async (message) => { setPanel(''); setNotice(message); await reload(); }} />}
         {panel === 'close' && canOperate && <CloseShiftForm shift={shift} onCancel={() => setPanel('')} onDone={async () => { setPanel(''); setNotice('Ca đã được chốt và khóa sổ.'); await reload(); }} />}
 
         {canApprove && pending.length > 0 && <section className="shift-pending-section"><div className="shift-section-heading"><p className="eyebrow">CẦN QUYẾT ĐỊNH</p><h2>Phiếu chi chờ duyệt</h2></div>{pending.map((item) => <article className="shift-pending-row" key={item.id}><div><strong>{item.description}</strong><span>{item.category} · {new Date(item.created_at).toLocaleString('vi-VN')}</span></div><b>{money(item.amount)}</b><div className="shift-row-actions"><button className="btn btn-primary" type="button" disabled={busy} onClick={() => decide(item.id, true)}>Duyệt</button><button className="btn btn-outline" type="button" disabled={busy} onClick={() => decide(item.id, false)}>Từ chối</button></div></article>)}</section>}
 
         <section className="shift-transactions-section"><div className="shift-section-heading"><p className="eyebrow">SỔ QUỸ CA HIỆN TẠI</p><h2>Giao dịch</h2></div><div className="table-wrapper"><table><thead><tr><th>Thời gian</th><th>Loại</th><th>Nội dung</th><th>Phương thức</th><th>Trạng thái</th><th>Số tiền</th>{canApprove && <th>Quyết định</th>}</tr></thead><tbody>{shift.transactions.map((item) => <tr key={item.id}><td>{new Date(item.created_at).toLocaleTimeString('vi-VN')}</td><td><span className={`cash-type ${item.transaction_type}`}>{item.transaction_type === 'inflow' ? 'Thu' : 'Chi'}</span></td><td>{item.description}</td><td>{item.payment_method === 'cash' ? 'Tiền mặt' : item.payment_method === 'bank_transfer' ? 'Chuyển khoản' : 'POS / thẻ'}</td><td>{item.approval_status === 'pending' ? 'Chờ duyệt' : item.approval_status === 'rejected' ? 'Từ chối' : 'Đã ghi sổ'}</td><td className={item.transaction_type === 'inflow' ? 'cash-positive' : 'cash-negative'}>{item.transaction_type === 'inflow' ? '+' : '−'}{money(item.amount)}</td>{canApprove && <td>{item.approval_status === 'pending' ? <div className="shift-row-actions"><button className="btn btn-primary" type="button" disabled={busy} onClick={() => decide(item.id, true)}>Duyệt</button><button className="btn btn-outline" type="button" disabled={busy} onClick={() => decide(item.id, false)}>Từ chối</button></div> : '—'}</td>}</tr>)}{!shift.transactions.length && <tr><td colSpan={canApprove ? 7 : 6} className="dashboard-empty-cell">Chưa có giao dịch trong ca.</td></tr>}</tbody></table></div></section>
       </>}
+      {canApprove && <section className="shift-pending-section inventory-payables-section"><div className="shift-section-heading"><p className="eyebrow">CÔNG NỢ NHẬP KHO</p><h2>Khoản chờ payout</h2></div>{payableError && <div className="alert alert-error" role="alert">{payableError}</div>}{!payables.length && !payableError && <p className="shift-policy-note">Không có công nợ nhập kho đang mở.</p>}{payables.map((item) => {
+        const availableCash = Number(shift?.payout_cash_available || 0);
+        const canPayFromShift = Boolean(shift) && availableCash >= Number(item.remaining_amount);
+        const canAdminResolve = user?.role === 'admin' && item.admin_resolve_eligible;
+        return <article className="shift-pending-row" key={item.id}><div><strong>{item.part_name} · {item.part_code}</strong><span>Nhập {item.quantity} {item.unit} ngày {new Date(`${item.work_date}T00:00:00`).toLocaleDateString('vi-VN')} · Giá nhập {money(item.unit_cost)} / đơn vị</span></div><b>Còn nợ {money(item.remaining_amount)}</b><div className="shift-row-actions">{shift && <button className="btn btn-primary" type="button" disabled={busy || !canPayFromShift} title={!canPayFromShift ? `Quỹ còn ${money(availableCash)}` : 'Thanh toán từ tiền mặt ca'} onClick={() => settlePayable(item)}>Payout từ ca</button>}{canAdminResolve && <button className="btn btn-outline" type="button" disabled={busy} onClick={() => settlePayable(item, 'external')}>Admin xử lý</button>}{!shift && !canAdminResolve && <span>Chờ ca hoặc admin xử lý</span>}</div></article>;
+      })}</section>}
     </div>
   );
 }

@@ -38,19 +38,29 @@ describe('sparePart.service — nhập kho', () => {
     pool.connect = async () => ({
       async query(sql, params) {
         calls.push([sql, params]);
-        if (sql.includes('SELECT id FROM spare_parts')) return { rowCount: 1, rows: [{ id: 5 }] };
+        if (sql.includes('SELECT id, part_name, unit, purchase_price FROM spare_parts')) {
+          return { rowCount: 1, rows: [{ id: 5, part_name: 'Oil filter', unit: 'piece', purchase_price: '100' }] };
+        }
+        if (sql.includes("FROM shifts WHERE status='open'")) return { rows: [] };
         if (sql.startsWith('UPDATE spare_parts')) return { rowCount: 1, rows: [{ id: 5, stock_quantity: '15.00' }] };
+        if (sql.startsWith('INSERT INTO inventory_movements')) return { rowCount: 1, rows: [{ id: 11 }] };
+        if (sql.startsWith('INSERT INTO inventory_payables')) {
+          return { rowCount: 1, rows: [{ id: 12, amount: '300', amount_paid: '0', status: 'open' }] };
+        }
         return { rowCount: 1, rows: [] };
       },
       release() { calls.push(['release']); },
     });
-    const result = await sparePartService.importStock({ sparePartId: '5', quantity: '3', recordedBy: 7 });
-    assert.deepEqual(result, { id: 5, stock_quantity: '15.00' });
+    const result = await sparePartService.importStock({ sparePartId: '5', quantity: '3', purchasePrice: 100, recordedBy: 7 });
+    assert.equal(result.part.stock_quantity, '15.00');
+    assert.equal(result.paidFromShift, false);
+    assert.equal(result.payable.amount, '300');
     assert.equal(calls[0][0], 'BEGIN');
-    assert.match(calls[1][0], /SELECT id FROM spare_parts WHERE id = \$1 FOR UPDATE/);
-    assert.deepEqual(calls[2][1], [5, 3]);
-    assert.deepEqual(calls[3][1], [5, 7, 3]);
-    assert.equal(calls[4][0], 'COMMIT');
+    assert.match(calls[1][0], /SELECT id, part_name, unit, purchase_price FROM spare_parts WHERE id = \$1 FOR UPDATE/);
+    assert.deepEqual(calls[3][1], [5, 3, 100]);
+    assert.deepEqual(calls[4][1], [5, 7, 3, 100]);
+    assert.deepEqual(calls[5][1], [11, 5, null, null, 3, 100, 300, 7]);
+    assert.equal(calls[6][0], 'COMMIT');
     assert.deepEqual(calls.at(-1), ['release']);
   });
 
@@ -59,13 +69,13 @@ describe('sparePart.service — nhập kho', () => {
     pool.connect = async () => ({
       async query(sql) {
         calls.push(sql);
-        if (sql.includes('SELECT id FROM spare_parts')) return { rowCount: 0, rows: [] };
+        if (sql.includes('SELECT id, part_name, unit, purchase_price FROM spare_parts')) return { rowCount: 0, rows: [] };
         return { rowCount: 0, rows: [] };
       },
       release() { calls.push('release'); },
     });
 
-    await assert.rejects(sparePartService.importStock({ sparePartId: 999, quantity: 1, recordedBy: 7 }), { statusCode: 404 });
+    await assert.rejects(sparePartService.importStock({ sparePartId: 999, quantity: 1, purchasePrice: 100, recordedBy: 7 }), { statusCode: 404 });
     assert.ok(calls.includes('ROLLBACK'));
     assert.equal(calls.includes('release'), true);
   });

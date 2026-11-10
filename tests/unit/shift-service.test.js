@@ -71,7 +71,7 @@ describe('shift.service — ca làm và quỹ', () => {
         calls.push([sql, params]);
         if (sql.startsWith('SELECT * FROM shifts')) return { rows: [{ id: 5, status: 'open', opened_by: 4, opening_cash: '3000000' }] };
         if (sql.includes('SELECT COUNT(*)')) return { rows: [{ count: 0 }] };
-        if (sql.includes('SELECT COALESCE(SUM(amount)')) return { rows: [{ cash_in: '4000000', bank_in: '5000000', pos_in: '2000000', cash_out: '1000000', cash_orders: 3, bank_orders: 4, pos_orders: 8 }] };
+        if (sql.includes('SELECT COALESCE(SUM(amount)')) return { rows: [{ cash_in: '4000000', cash_replenishment: '0', bank_in: '5000000', pos_in: '2000000', cash_out: '1000000', cash_orders: 3, bank_orders: 4, pos_orders: 8 }] };
         if (sql.startsWith('UPDATE shifts')) return { rows: [{ id: 5, status: 'closed' }] };
         return { rows: [] };
       }, release() {},
@@ -84,9 +84,10 @@ describe('shift.service — ca làm và quỹ', () => {
     const update = calls.find(([sql]) => sql.startsWith('UPDATE shifts'));
     assert.equal(update[1][2], 6000000);
     assert.equal(update[1][4], 0);
-    assert.equal(update[1][5], 1000000);
-    assert.deepEqual(update[1].slice(6, 13), ['4000000', '5000000', '1000000', '2000000', 3, 4, 8]);
+    assert.equal(update[1][5], 3000000);
+    assert.deepEqual(update[1].slice(6, 13), [4000000, '5000000', '1000000', '2000000', 3, 4, 8]);
     assert.deepEqual(update[1].slice(13, 17), [5000000, 0, 2000000, 0]);
+    assert.equal(update[1][17], '0');
   });
 
   test('chốt ca cần nhập đối soát cả ba phương thức và giải trình mọi chênh lệch', async () => {
@@ -102,14 +103,14 @@ describe('shift.service — ca làm và quỹ', () => {
     await assert.rejects(shiftService.closeShift({ shiftId: 1, actualCash: 1000, reconciledBankInflow: 0, reconciledPosInflow: 0, userId: 1 }), { statusCode: 400 });
   });
 
-  test('giữ nguyên công thức nộp két âm khi tiền mặt thu thấp hơn tiền gốc', async () => {
+  test('tính nộp két từ tiền mặt kiểm kê sau khi giữ lại tiền gốc', async () => {
     const calls = [];
     pool.connect = async () => ({
       async query(sql, params) {
         calls.push([sql, params]);
         if (sql.startsWith('SELECT * FROM shifts')) return { rows: [{ id: 2, status: 'open', opened_by: 4, opening_cash: '3000000' }] };
         if (sql.includes('SELECT COUNT(*)')) return { rows: [{ count: 0 }] };
-        if (sql.includes('SELECT COALESCE(SUM(amount)')) return { rows: [{ cash_in: '2000000', bank_in: '0', pos_in: '0', cash_out: '0', cash_orders: 2, bank_orders: 0, pos_orders: 0 }] };
+        if (sql.includes('SELECT COALESCE(SUM(amount)')) return { rows: [{ cash_in: '2000000', cash_replenishment: '0', bank_in: '0', pos_in: '0', cash_out: '0', cash_orders: 2, bank_orders: 0, pos_orders: 0 }] };
         if (sql.startsWith('UPDATE shifts')) return { rows: [{ id: 2, status: 'closed', deposited_cash: params[5] }] };
         return { rows: [] };
       }, release() {},
@@ -118,8 +119,8 @@ describe('shift.service — ca làm và quỹ', () => {
       shiftId: 2, actualCash: 5000000, reconciledBankInflow: 0, reconciledPosInflow: 0,
       userId: 4, userRole: 'receptionist',
     });
-    assert.equal(result.deposited_cash, -1000000);
+    assert.equal(result.deposited_cash, 2000000);
     const update = calls.find(([sql]) => sql.startsWith('UPDATE shifts'));
-    assert.equal(update[1][5], -1000000);
+    assert.equal(update[1][5], 2000000);
   });
 });

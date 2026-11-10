@@ -94,7 +94,8 @@ test('US21 — mở ca, duyệt chi, tự ghi thu hóa đơn, chốt và bàn gi
     assert.equal((await api(`/appointments/${fixture.ids.appointmentId}/decision`, { method: 'PUT', token: tokens.cashier, body: { status: 'proposed', confirmedFor: proposedFor.toISOString(), staffNote: 'Gara còn khung giờ này' } })).status, 200);
     const appointmentList = await api('/appointments/mine', { token: tokens.customer });
     assert.equal(appointmentList.json.data[0].status, 'proposed');
-    assert.equal((await api(`/appointments/${fixture.ids.appointmentId}/customer-decision`, { method: 'POST', token: tokens.customer, body: { accept: true } })).status, 200);
+    const customerDecision = await api(`/appointments/${fixture.ids.appointmentId}/customer-decision`, { method: 'POST', token: tokens.customer, body: { accept: true } });
+    assert.equal(customerDecision.status, 200, JSON.stringify(customerDecision.json));
     const confirmedAppointment = await api('/appointments/mine', { token: tokens.customer });
     assert.equal(confirmedAppointment.json.data[0].status, 'confirmed');
     assert.equal((await api(`/appointments/${fixture.ids.appointmentId}/check-in`, { method: 'POST', token: tokens.customer, body: {} })).status, 403);
@@ -206,7 +207,7 @@ test('US21 — mở ca, duyệt chi, tự ghi thu hóa đơn, chốt và bàn gi
     } });
     assert.equal(ca2Closed.status, 200);
     assert.equal(Number(ca2Closed.json.data.expected_closing_cash), 3500000);
-    assert.equal(Number(ca2Closed.json.data.deposited_cash), -1500000);
+    assert.equal(Number(ca2Closed.json.data.deposited_cash), 1000000);
     assert.equal((await api('/shifts', { token: tokens.manager })).status, 200);
   } finally {
     await stopServer(server);

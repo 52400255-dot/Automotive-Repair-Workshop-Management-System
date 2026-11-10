@@ -12,7 +12,10 @@ export default function LandingHero() {
       <div className="landing-hero-inner">
         <div className="landing-hero-copy">
           <p className="landing-eyebrow"><span /> 01 / HỆ THỐNG VẬN HÀNH XƯỞNG</p>
-          <h1 id="landing-hero-title">Chính xác từng thao tác.<br /><em>Tăng tốc mọi hành trình.</em></h1>
+          <h1 id="landing-hero-title">
+            <span>Chính xác từng thao tác.</span>
+            <em>Tăng tốc mọi hành trình.</em>
+          </h1>
           <p className="landing-hero-description">
             Từ tiếp nhận, chẩn đoán đến bàn giao — mọi công đoạn được kết nối trong một quy trình rõ ràng,
             để đội ngũ vận hành đúng nhịp và khách hàng luôn nắm bắt tiến độ.

@@ -1,8 +1,8 @@
 const { pool } = require('../config/db');
 
 const SHIFT_RULES = { ca_1: ['07:00', '14:30'], ca_2: ['14:30', '22:30'] };
-const CATEGORIES = new Set(['repair_payment', 'repair_deposit', 'spare_part_purchase', 'inventory_import', 'operational_expense', 'other']);
-const METHODS = new Set(['cash', 'bank_transfer', 'pos_card']);
+const CATEGORIES = new Set(['repair_payment', 'repair_deposit', 'spare_part_purchase', 'inventory_import', 'operational_expense', 'other', 'cash_replenishment']);
+const METHODS = new Set(['cash', 'bank_transfer', 'pos_card', 'external']);
 const fail = (statusCode, message) => { throw Object.assign(new Error(message), { statusCode }); };
 const roundMoney = (value) => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
 const positiveMoney = (value, label) => {
@@ -26,23 +26,30 @@ const idOf = (value, label) => {
 
 function serializeShift(row, transactions = []) {
   if (!row) return null;
+  const workDate = row.work_date instanceof Date
+    ? `${row.work_date.getFullYear()}-${String(row.work_date.getMonth() + 1).padStart(2, '0')}-${String(row.work_date.getDate()).padStart(2, '0')}`
+    : row.work_date;
   const opening = Number(row.opening_cash || 0);
   const cashIn = Number(row.total_cash_inflow || 0);
+  const cashReplenishment = Number(row.cash_replenishment_total || 0);
   const bankIn = Number(row.total_bank_inflow || 0);
   const posIn = Number(row.total_pos_inflow || 0);
   const cashOut = Number(row.total_cash_outflow || 0);
   return {
     ...row,
+    work_date: workDate,
     opening_cash: opening,
     total_cash_inflow: cashIn,
+    cash_replenishment_total: cashReplenishment,
     total_bank_inflow: bankIn,
     total_pos_inflow: posIn,
     total_cash_outflow: cashOut,
     cash_order_count: Number(row.cash_order_count || 0),
     bank_transfer_order_count: Number(row.bank_transfer_order_count || 0),
     pos_order_count: Number(row.pos_order_count || 0),
-    current_cash: roundMoney(opening + cashIn - cashOut),
-    expected_closing_cash: row.expected_closing_cash == null ? roundMoney(opening + cashIn - cashOut) : Number(row.expected_closing_cash),
+    current_cash: roundMoney(opening + cashIn + cashReplenishment - cashOut),
+    payout_cash_available: Math.max(0, roundMoney(cashIn + cashReplenishment - cashOut)),
+    expected_closing_cash: row.expected_closing_cash == null ? roundMoney(opening + cashIn + cashReplenishment - cashOut) : Number(row.expected_closing_cash),
     cash_difference: row.cash_difference == null ? null : Number(row.cash_difference),
     deposited_cash: row.deposited_cash == null ? null : Number(row.deposited_cash),
     bank_difference: row.bank_difference == null ? null : Number(row.bank_difference),
@@ -58,13 +65,14 @@ async function getOpenShift(client = pool) {
   return result.rows[0] || null;
 }
 
-async function getShiftWithTransactions(id, client = pool) {
+async function getShiftWithTransactions(id, userRole, client = pool) {
   const shift = (await client.query(`SELECT s.*, o.full_name AS opened_by_name, c.full_name AS closed_by_name FROM shifts s JOIN users o ON o.id=s.opened_by LEFT JOIN users c ON c.id=s.closed_by WHERE s.id = $1`, [id])).rows[0];
   if (!shift) return null;
   const transactions = await client.query('SELECT * FROM cash_transactions WHERE shift_id = $1 ORDER BY created_at DESC, id DESC', [id]);
   const approved = transactions.rows.filter((item) => item.approval_status === 'approved');
   const summary = {
-    total_cash_inflow: roundMoney(approved.filter((item) => item.transaction_type === 'inflow' && item.payment_method === 'cash').reduce((sum, item) => sum + Number(item.amount), 0)),
+    total_cash_inflow: roundMoney(approved.filter((item) => item.transaction_type === 'inflow' && item.payment_method === 'cash' && item.category !== 'cash_replenishment').reduce((sum, item) => sum + Number(item.amount), 0)),
+    cash_replenishment_total: roundMoney(approved.filter((item) => item.transaction_type === 'inflow' && item.payment_method === 'cash' && item.category === 'cash_replenishment').reduce((sum, item) => sum + Number(item.amount), 0)),
     total_bank_inflow: roundMoney(approved.filter((item) => item.transaction_type === 'inflow' && item.payment_method === 'bank_transfer').reduce((sum, item) => sum + Number(item.amount), 0)),
     total_pos_inflow: roundMoney(approved.filter((item) => item.transaction_type === 'inflow' && item.payment_method === 'pos_card').reduce((sum, item) => sum + Number(item.amount), 0)),
     total_cash_outflow: roundMoney(approved.filter((item) => item.transaction_type === 'outflow' && item.payment_method === 'cash').reduce((sum, item) => sum + Number(item.amount), 0)),
@@ -72,7 +80,10 @@ async function getShiftWithTransactions(id, client = pool) {
     bank_transfer_order_count: approved.filter((item) => item.transaction_type === 'inflow' && item.category === 'repair_payment' && item.payment_method === 'bank_transfer').length,
     pos_order_count: approved.filter((item) => item.transaction_type === 'inflow' && item.category === 'repair_payment' && item.payment_method === 'pos_card').length,
   };
-  return serializeShift({ ...shift, ...summary }, transactions.rows);
+  const visibleTransactions = ['warehouse_staff', 'service_manager', 'admin'].includes(userRole)
+    ? transactions.rows
+    : transactions.rows.filter((item) => !(item.category === 'inventory_import' && item.reference_type === 'inventory_payable'));
+  return serializeShift({ ...shift, ...summary }, visibleTransactions);
 }
 
 async function openShift({ shiftName, openingCash, userId }) {
@@ -98,10 +109,10 @@ async function openShift({ shiftName, openingCash, userId }) {
   } finally { client.release(); }
 }
 
-async function getCurrentShift() {
+async function getCurrentShift(userRole) {
   const settings = (await pool.query('SELECT default_opening_cash, expense_approval_limit FROM shift_settings WHERE singleton=TRUE')).rows[0];
   const shift = await getOpenShift();
-  if (shift) return { current: await getShiftWithTransactions(shift.id), settings };
+  if (shift) return { current: await getShiftWithTransactions(shift.id, userRole), settings };
   const completed = await pool.query(
     `SELECT shift_name FROM shifts WHERE work_date=(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Bangkok')::date AND status='closed'`
   );
@@ -131,6 +142,7 @@ async function recordTransaction({ shiftId, type, category, amount, paymentMetho
   if (!['inflow', 'outflow'].includes(type)) fail(400, 'Loại giao dịch không hợp lệ');
   if (!CATEGORIES.has(category)) fail(400, 'Nhóm giao dịch không hợp lệ');
   if (!METHODS.has(paymentMethod)) fail(400, 'Phương thức thanh toán không hợp lệ');
+  if (type === 'outflow' && category === 'inventory_import') fail(400, 'Hãy thanh toán nhập kho qua công nợ của mặt hàng');
   if (type === 'outflow' && (!['spare_part_purchase', 'inventory_import', 'operational_expense', 'other'].includes(category) || paymentMethod !== 'cash')) fail(400, 'Phiếu chi quỹ chỉ hỗ trợ khoản chi tiền mặt');
   if (typeof description !== 'string' || !description.trim() || description.trim().length > 500) fail(400, 'Diễn giải giao dịch là bắt buộc và tối đa 500 ký tự');
   const client = await pool.connect();
@@ -158,6 +170,118 @@ async function recordTransaction({ shiftId, type, category, amount, paymentMetho
   } finally { client.release(); }
 }
 
+async function recordManagerCashMovement({ type, amount, description, userId, userRole }) {
+  if (!['service_manager', 'admin'].includes(userRole)) fail(403, 'Chỉ quản lý dịch vụ hoặc quản trị viên được ghi pay-in / payout');
+  if (!['inflow', 'outflow'].includes(type)) fail(400, 'Loại giao dịch không hợp lệ');
+  const value = positiveMoney(amount, 'Số tiền');
+  if (typeof description !== 'string' || !description.trim() || description.trim().length > 500) fail(400, 'Diễn giải giao dịch là bắt buộc và tối đa 500 ký tự');
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const shift = (await client.query("SELECT * FROM shifts WHERE status='open' ORDER BY id DESC LIMIT 1 FOR UPDATE")).rows[0];
+    if (!shift) fail(409, 'Cần mở ca trước khi ghi pay-in hoặc payout');
+    if (type === 'outflow') {
+      const cash = (await client.query(
+        `SELECT COALESCE(SUM(amount) FILTER (WHERE transaction_type='inflow' AND payment_method='cash' AND approval_status='approved'),0) AS cash_in,
+                COALESCE(SUM(amount) FILTER (WHERE transaction_type='outflow' AND payment_method='cash' AND approval_status='approved'),0) AS cash_out
+         FROM cash_transactions WHERE shift_id=$1`, [shift.id]
+      )).rows[0];
+      const available = Math.max(0, Number(cash.cash_in) - Number(cash.cash_out));
+      if (value > available) fail(409, `Quỹ ca chỉ còn ${Math.max(0, available).toLocaleString('vi-VN')} đ; chưa thể payout khoản này`);
+    }
+    const category = type === 'inflow' ? 'cash_replenishment' : 'operational_expense';
+    const transaction = (await client.query(
+      `INSERT INTO cash_transactions
+       (shift_id, transaction_type, category, payment_method, amount, description, approval_status, approved_by, approved_at, created_by)
+       VALUES ($1,$2,$3,'cash',$4,$5,'approved',$6,CURRENT_TIMESTAMP,$6) RETURNING *`,
+      [shift.id, type, category, value, description.trim(), userId]
+    )).rows[0];
+    await client.query('COMMIT');
+    return transaction;
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch { /* transaction may already be closed */ }
+    throw err;
+  } finally { client.release(); }
+}
+
+async function getInventoryPayables() {
+  const result = await pool.query(
+    `SELECT p.id, p.spare_part_id, p.source_shift_id, TO_CHAR(p.work_date,'YYYY-MM-DD') AS work_date,
+            p.quantity, p.unit_cost, p.amount, p.amount_paid, p.amount-p.amount_paid AS remaining_amount,
+            p.created_at, sp.part_code, sp.part_name, sp.unit,
+            (p.work_date <= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Bangkok')::date
+              AND (SELECT COUNT(*) FROM shifts s WHERE s.work_date=p.work_date AND s.status='closed') >= 2
+              AND NOT EXISTS (SELECT 1 FROM shifts s WHERE s.status='open')) AS admin_resolve_eligible
+     FROM inventory_payables p JOIN spare_parts sp ON sp.id=p.spare_part_id
+     WHERE p.status='open' ORDER BY p.work_date, p.created_at, p.id`
+  );
+  return result.rows.map((row) => ({
+    ...row,
+    quantity: Number(row.quantity),
+    unit_cost: Number(row.unit_cost),
+    amount: Number(row.amount),
+    amount_paid: Number(row.amount_paid),
+    remaining_amount: Number(row.remaining_amount),
+    admin_resolve_eligible: row.admin_resolve_eligible === true,
+  }));
+}
+
+async function payoutInventoryPayable({ payableId, paymentSource = 'cash', userId, userRole }) {
+  if (!['service_manager', 'admin'].includes(userRole)) fail(403, 'Chỉ quản lý dịch vụ hoặc quản trị viên được thanh toán công nợ nhập kho');
+  const id = idOf(payableId, 'Mã công nợ');
+  if (!['cash', 'external'].includes(paymentSource)) fail(400, 'Nguồn thanh toán không hợp lệ');
+  if (paymentSource === 'external' && userRole !== 'admin') fail(403, 'Chỉ quản trị viên được xử lý công nợ bằng nguồn ngoài');
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const payable = (await client.query('SELECT * FROM inventory_payables WHERE id=$1 FOR UPDATE', [id])).rows[0];
+    if (!payable) fail(404, 'Không tìm thấy công nợ nhập kho');
+    if (payable.status !== 'open') fail(409, 'Công nợ này đã được thanh toán');
+    const balance = roundMoney(Number(payable.amount) - Number(payable.amount_paid));
+    let shiftId = null;
+    let method = 'cash';
+    if (paymentSource === 'cash') {
+      const shift = (await client.query("SELECT * FROM shifts WHERE status='open' ORDER BY id DESC LIMIT 1 FOR UPDATE")).rows[0];
+      if (!shift) fail(409, 'Không có ca đang mở để thanh toán công nợ');
+      const totals = (await client.query(
+        `SELECT COALESCE(SUM(amount) FILTER (WHERE transaction_type='inflow' AND payment_method='cash' AND approval_status='approved'),0) AS cash_in,
+                COALESCE(SUM(amount) FILTER (WHERE transaction_type='outflow' AND payment_method='cash' AND approval_status='approved'),0) AS cash_out
+         FROM cash_transactions WHERE shift_id=$1`, [shift.id]
+      )).rows[0];
+      const available = Math.max(0, Number(totals.cash_in) - Number(totals.cash_out));
+      if (balance > available) fail(409, `Công nợ ${balance.toLocaleString('vi-VN')} đ chưa đủ quỹ; ca này còn ${Math.max(0, available).toLocaleString('vi-VN')} đ. Khoản nợ được giữ sang ca tiếp theo`);
+      shiftId = shift.id;
+    } else {
+      const eligible = (await client.query(
+        `SELECT COUNT(*)::int AS closed_shifts,
+                EXISTS(SELECT 1 FROM shifts WHERE status='open') AS has_open_shift
+         FROM shifts WHERE work_date=$1::date AND status='closed'`, [payable.work_date]
+      )).rows[0];
+      if (eligible.closed_shifts < 2 || eligible.has_open_shift) {
+        fail(409, 'Admin chỉ được xử lý nguồn ngoài sau khi cả hai ca trong ngày đã chốt');
+      }
+      method = 'external';
+    }
+    const transaction = (await client.query(
+      `INSERT INTO cash_transactions
+       (shift_id, transaction_type, category, payment_method, amount, reference_type, reference_id, description, approval_status, approved_by, approved_at, created_by)
+       VALUES ($1,'outflow','inventory_import',$2,$3,'inventory_payable',$4,$5,'approved',$6,CURRENT_TIMESTAMP,$6) RETURNING id`,
+      [shiftId, method, balance, id, `Payout công nợ nhập kho #${id}`, userId]
+    )).rows[0];
+    const updated = (await client.query(
+      `UPDATE inventory_payables SET amount_paid=amount, status='paid', updated_at=CURRENT_TIMESTAMP
+       WHERE id=$1 RETURNING id, amount, amount_paid, status`, [id]
+    )).rows[0];
+    await client.query('COMMIT');
+    return { ...updated, payment_source: paymentSource, shift_id: shiftId, transaction_id: transaction.id };
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch { /* transaction may already be closed */ }
+    throw err;
+  } finally { client.release(); }
+}
+
 async function closeShift({ shiftId, actualCash, reconciledBankInflow, reconciledPosInflow, differenceReason, notes, userId, userRole }) {
   const id = idOf(shiftId, 'Mã ca');
   const actual = nonNegativeMoney(actualCash, 'Tiền mặt kiểm kê');
@@ -174,6 +298,7 @@ async function closeShift({ shiftId, actualCash, reconciledBankInflow, reconcile
     if (pending.rows[0].count) fail(409, 'Còn phiếu chi đang chờ quản lý phê duyệt; chưa thể chốt ca');
     const totals = (await client.query(
       `SELECT COALESCE(SUM(amount) FILTER (WHERE transaction_type='inflow' AND payment_method='cash' AND approval_status='approved'),0) AS cash_in,
+              COALESCE(SUM(amount) FILTER (WHERE transaction_type='inflow' AND payment_method='cash' AND category='cash_replenishment' AND approval_status='approved'),0) AS cash_replenishment,
               COALESCE(SUM(amount) FILTER (WHERE transaction_type='inflow' AND payment_method='bank_transfer' AND approval_status='approved'),0) AS bank_in,
               COALESCE(SUM(amount) FILTER (WHERE transaction_type='inflow' AND payment_method='pos_card' AND approval_status='approved'),0) AS pos_in,
               COALESCE(SUM(amount) FILTER (WHERE transaction_type='outflow' AND payment_method='cash' AND approval_status='approved'),0) AS cash_out,
@@ -182,13 +307,14 @@ async function closeShift({ shiftId, actualCash, reconciledBankInflow, reconcile
               COUNT(*) FILTER (WHERE transaction_type='inflow' AND category='repair_payment' AND payment_method='pos_card' AND approval_status='approved')::int AS pos_orders
        FROM cash_transactions WHERE shift_id = $1`, [id]
     )).rows[0];
+    const cashSales = roundMoney(Number(totals.cash_in) - Number(totals.cash_replenishment));
     const expected = roundMoney(Number(shift.opening_cash) + Number(totals.cash_in) - Number(totals.cash_out));
     const cashDifference = roundMoney(actual - expected);
     const bankDifference = roundMoney(bankChecked - Number(totals.bank_in));
     const posDifference = roundMoney(posChecked - Number(totals.pos_in));
     if ([cashDifference, bankDifference, posDifference].some((difference) => Math.abs(difference) > 0.009)
       && (!differenceReason || !String(differenceReason).trim())) fail(400, 'Cần giải trình khi tiền kiểm kê hoặc đối soát khác số đã ghi nhận');
-    const deposited = roundMoney(Number(totals.cash_in) - Number(shift.opening_cash));
+    const deposited = roundMoney(actual - Number(shift.opening_cash));
     const row = (await client.query(
       `UPDATE shifts SET status='closed', end_time=CURRENT_TIMESTAMP, closed_by=$2,
          expected_closing_cash=$3, actual_closing_cash=$4, cash_difference=$5,
@@ -196,11 +322,11 @@ async function closeShift({ shiftId, actualCash, reconciledBankInflow, reconcile
          total_cash_outflow=$9, cash_breakdown=NULL, total_pos_inflow=$10,
          cash_order_count=$11, bank_transfer_order_count=$12, pos_order_count=$13,
          reconciled_bank_inflow=$14, bank_difference=$15, reconciled_pos_inflow=$16, pos_difference=$17,
-         difference_reason=$18, notes=$19, updated_at=CURRENT_TIMESTAMP
+         cash_replenishment_total=$18, difference_reason=$19, notes=$20, updated_at=CURRENT_TIMESTAMP
        WHERE id=$1 RETURNING *`,
-      [id, userId, expected, actual, cashDifference, deposited, totals.cash_in, totals.bank_in, totals.cash_out, totals.pos_in,
+      [id, userId, expected, actual, cashDifference, deposited, cashSales, totals.bank_in, totals.cash_out, totals.pos_in,
         totals.cash_orders, totals.bank_orders, totals.pos_orders, bankChecked, bankDifference, posChecked, posDifference,
-        differenceReason?.trim() || null, notes?.trim() || null]
+        totals.cash_replenishment, differenceReason?.trim() || null, notes?.trim() || null]
     )).rows[0];
     await client.query('COMMIT');
     return serializeShift(row);
@@ -255,4 +381,17 @@ async function getSettings() {
   return result.rows[0] || { default_opening_cash: 0, expense_approval_limit: 2000000 };
 }
 
-module.exports = { openShift, getCurrentShift, getShiftWithTransactions, recordTransaction, closeShift, getHistory, approveTransaction, updateSettings, getSettings };
+module.exports = {
+  openShift,
+  getCurrentShift,
+  getShiftWithTransactions,
+  recordTransaction,
+  recordManagerCashMovement,
+  getInventoryPayables,
+  payoutInventoryPayable,
+  closeShift,
+  getHistory,
+  approveTransaction,
+  updateSettings,
+  getSettings,
+};

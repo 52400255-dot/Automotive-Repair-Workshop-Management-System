@@ -11,7 +11,8 @@ import { useAuth } from '../../context/AuthContext';
 import Modal from '../../components/common/Modal';
 
 // Vai trò được thêm/sửa/nhập kho/ghi nhận sử dụng (khớp phân quyền backend)
-const MANAGE_ROLES = ['warehouse_staff', 'admin'];
+const MANAGE_ROLES = ['warehouse_staff', 'service_manager', 'admin'];
+const USAGE_ROLES = ['warehouse_staff', 'admin'];
 const IMPORT_ROLES = ['warehouse_staff', 'service_manager', 'admin'];
 // Vai trò được gọi GET /spare-parts/low-stock (các vai trò khác sẽ bị 403 → tự đăng xuất)
 const LOW_STOCK_ROLES = ['warehouse_staff', 'service_manager', 'admin'];
@@ -32,6 +33,7 @@ const isPositiveInt = (v) =>
   /^\d+$/.test(String(v).trim()) && Number(v) > 0 && Number(v) <= MAX_QTY;
 const isNonNegInt = (v) => /^\d+$/.test(String(v).trim()) && Number(v) <= MAX_QTY;
 const isMoney = (v) => /^\d+(\.\d{1,2})?$/.test(String(v).trim()) && Number(v) < MAX_MONEY;
+const isPositiveMoney = (v) => isMoney(v) && Number(v) > 0;
 
 function errorText(err, fallback) {
   const status = err.response?.status;
@@ -85,14 +87,15 @@ function PartModal({ mode, part, existingCodes, onClose, onSaved }) {
           unit: part.unit,
           stockQuantity: String(Number(part.stock_quantity)),
           unitPrice: String(Number(part.unit_price)),
+          purchasePrice: String(Number(part.purchase_price || 0)),
           minStock: String(Number(part.min_stock || 0)),
         }
       : {
           partCode: '',
           partName: '',
           unit: '',
-          stockQuantity: '0',
           unitPrice: '',
+          purchasePrice: '',
           minStock: '0',
         }
   );
@@ -116,16 +119,16 @@ function PartModal({ mode, part, existingCodes, onClose, onSaved }) {
       if (!unit) next.unit = 'Vui lòng nhập đơn vị tính.';
       else if (unit.length > 30) next.unit = 'Đơn vị tính tối đa 30 ký tự.';
 
-      if (!isNonNegInt(form.stockQuantity)) {
-        next.stockQuantity = 'Số lượng ban đầu phải là số nguyên từ 0 trở lên.';
-      }
     }
 
     if (!name) next.partName = 'Vui lòng nhập tên phụ tùng.';
     else if (name.length > 255) next.partName = 'Tên phụ tùng tối đa 255 ký tự.';
 
     if (!isMoney(form.unitPrice)) {
-      next.unitPrice = 'Đơn giá phải là số không âm (tối đa 2 chữ số thập phân).';
+      next.unitPrice = 'Giá sửa chữa phải là số không âm (tối đa 2 chữ số thập phân).';
+    }
+    if (!isPositiveMoney(form.purchasePrice)) {
+      next.purchasePrice = 'Giá nhập phải lớn hơn 0 (tối đa 2 chữ số thập phân).';
     }
     if (!isNonNegInt(form.minStock)) {
       next.minStock = 'Ngưỡng tồn tối thiểu phải là số nguyên từ 0 trở lên.';
@@ -146,6 +149,7 @@ function PartModal({ mode, part, existingCodes, onClose, onSaved }) {
         await api.put(`/spare-parts/${part.id}`, {
           partName: form.partName.trim(),
           unitPrice: Number(form.unitPrice),
+          purchasePrice: Number(form.purchasePrice),
           minStock: Number(form.minStock),
         });
         onSaved(`Đã cập nhật phụ tùng "${form.partName.trim()}".`);
@@ -154,8 +158,9 @@ function PartModal({ mode, part, existingCodes, onClose, onSaved }) {
           partCode: form.partCode.trim(),
           partName: form.partName.trim(),
           unit: form.unit.trim(),
-          stockQuantity: Number(form.stockQuantity),
+          stockQuantity: 0,
           unitPrice: Number(form.unitPrice),
+          purchasePrice: Number(form.purchasePrice),
           minStock: Number(form.minStock),
         });
         onSaved(`Đã thêm phụ tùng "${form.partName.trim()}".`);
@@ -212,30 +217,23 @@ function PartModal({ mode, part, existingCodes, onClose, onSaved }) {
             />
           </Field>
 
-          <Field
-            label={isEdit ? 'Tồn kho hiện tại (đổi bằng chức năng Nhập kho)' : 'Số lượng ban đầu'}
-            error={errors.stockQuantity}
-            htmlFor="part-stock-quantity"
-          >
-            <input
-              id="part-stock-quantity"
-              className="form-control"
-              inputMode="numeric"
-              value={form.stockQuantity}
-              onChange={set('stockQuantity')}
-              disabled={isEdit}
-            />
-          </Field>
+          {isEdit && <Field label="Tồn kho hiện tại (đổi bằng chức năng Nhập kho)" htmlFor="part-stock-quantity">
+            <input id="part-stock-quantity" className="form-control" value={form.stockQuantity} disabled />
+          </Field>}
 
-          <Field label="Đơn giá (đ)" error={errors.unitPrice} htmlFor="part-unit-price">
+          <Field label="Giá áp dụng sửa chữa (đ)" error={errors.unitPrice} htmlFor="part-unit-price">
             <input
               id="part-unit-price"
               className="form-control"
               inputMode="decimal"
               value={form.unitPrice}
               onChange={set('unitPrice')}
-              placeholder="VD: 450000"
+              placeholder="VD: 160000"
             />
+          </Field>
+
+          <Field label="Giá nhập gần nhất (đ)" error={errors.purchasePrice} htmlFor="part-purchase-price">
+            <input id="part-purchase-price" className="form-control" inputMode="decimal" value={form.purchasePrice} onChange={set('purchasePrice')} placeholder="VD: 80000" />
           </Field>
 
           <Field label="Ngưỡng tồn tối thiểu" error={errors.minStock} htmlFor="part-min-stock">
@@ -265,6 +263,7 @@ function PartModal({ mode, part, existingCodes, onClose, onSaved }) {
 
 function ImportModal({ part, onClose, onSaved }) {
   const [quantity, setQuantity] = useState('');
+  const [purchasePrice, setPurchasePrice] = useState(Number(part.purchase_price) > 0 ? String(Number(part.purchase_price)) : '');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -275,11 +274,21 @@ function ImportModal({ part, onClose, onSaved }) {
       setError('Số lượng nhập phải là số nguyên dương (lớn hơn 0).');
       return;
     }
+    if (!isPositiveMoney(purchasePrice)) {
+      setError('Giá nhập phải lớn hơn 0, tối đa hai chữ số thập phân.');
+      return;
+    }
 
     setSubmitting(true);
     try {
-      await api.post(`/spare-parts/${part.id}/import`, { quantity: Number(quantity) });
-      onSaved(`Đã nhập ${quantity} ${part.unit} cho "${part.part_name}".`);
+      const response = await api.post(`/spare-parts/${part.id}/import`, { quantity: Number(quantity), purchasePrice: Number(purchasePrice) });
+      const result = response.data.data;
+      const debtText = result.payable && !result.paidFromShift
+        ? ` Đã ghi công nợ ${formatMoney(result.payable.amount)} để chuyển sang ca sau.`
+        : result.payable
+          ? ` Đã payout ${formatMoney(result.payable.amount)} từ quỹ ca.`
+          : '';
+      onSaved(`Đã nhập ${quantity} ${part.unit} cho "${part.part_name}".${debtText}`);
     } catch (err) {
       setError(errorText(err, 'Không nhập kho được.'));
       setSubmitting(false);
@@ -315,6 +324,10 @@ function ImportModal({ part, onClose, onSaved }) {
               placeholder="VD: 10"
               autoFocus
             />
+          </Field>
+
+          <Field label="Giá nhập mỗi đơn vị (đ)" htmlFor="import-purchase-price">
+            <input id="import-purchase-price" className="form-control" inputMode="decimal" value={purchasePrice} onChange={(e) => setPurchasePrice(e.target.value)} placeholder="VD: 80000" required />
           </Field>
 
           <div className="modal-actions">
@@ -470,7 +483,9 @@ export default function InventoryPage() {
   const { user } = useAuth();
   const role = user?.role;
   const canManage = MANAGE_ROLES.includes(role);
+  const canRecordUsage = USAGE_ROLES.includes(role);
   const canImport = IMPORT_ROLES.includes(role);
+  const canViewPurchasePrice = IMPORT_ROLES.includes(role);
   const canShowActions = canManage || canImport;
   const canCallLowStock = LOW_STOCK_ROLES.includes(role);
 
@@ -540,7 +555,7 @@ export default function InventoryPage() {
   const allLow = parts.filter(isLow);
   const visibleParts = tab === 'low' ? (canCallLowStock ? lowParts : allLow) : parts;
   const existingCodes = parts.map((p) => String(p.part_code).toLowerCase());
-  const columnCount = canShowActions ? 8 : 7;
+  const columnCount = 7 + (canViewPurchasePrice ? 1 : 0) + (canShowActions ? 1 : 0);
 
   return (
     <div className="inventory-page">
@@ -588,7 +603,7 @@ export default function InventoryPage() {
       )}
 
       {/* Ghi nhận sử dụng phụ tùng (US11) */}
-      {canManage && <UsageForm parts={parts} jobs={role === 'admin' ? repairJobs : null} jobsLoadError={role === 'admin' ? jobsLoadError : ''} jobsLoading={role === 'admin' && jobsLoading} onDone={handleDone} />}
+      {canRecordUsage && <UsageForm parts={parts} jobs={role === 'admin' ? repairJobs : null} jobsLoadError={role === 'admin' ? jobsLoadError : ''} jobsLoading={role === 'admin' && jobsLoading} onDone={handleDone} />}
 
       {/* Tab lọc (US12) */}
       <div className="filter-tabs" role="group" aria-label="Lọc phụ tùng">
@@ -613,7 +628,7 @@ export default function InventoryPage() {
         <div className="table-card-heading">
           <div>
             <h2>Danh mục phụ tùng</h2>
-            <p>Đơn giá và ngưỡng tồn được quản lý theo từng mặt hàng.</p>
+            <p>Giá nhập và giá sửa chữa được phân quyền theo vai trò.</p>
           </div>
           <span className="record-count">{visibleParts.length} mặt hàng</span>
         </div>
@@ -626,7 +641,8 @@ export default function InventoryPage() {
                 <th>ĐƠN VỊ</th>
                 <th>TỒN KHO</th>
                 <th>TỒN TỐI THIỂU</th>
-                <th>ĐƠN GIÁ</th>
+                <th>GIÁ SỬA CHỮA</th>
+                {canViewPurchasePrice && <th>GIÁ NHẬP</th>}
                 <th>TRẠNG THÁI</th>
                 {canShowActions && <th>THAO TÁC</th>}
               </tr>
@@ -642,6 +658,7 @@ export default function InventoryPage() {
                   </td>
                   <td>{formatQty(p.min_stock)}</td>
                   <td>{formatMoney(p.unit_price)}</td>
+                  {canViewPurchasePrice && <td>{formatMoney(p.purchase_price)}</td>}
                   <td>
                     <StockBadge part={p} />
                   </td>

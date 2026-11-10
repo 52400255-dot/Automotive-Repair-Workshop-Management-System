@@ -4,18 +4,18 @@
 const partService = require('../services/sparePart.service');
 
 async function list(req, res, next) {
-  try { res.json({ success: true, data: await partService.findAll() }); }
+  try { res.json({ success: true, data: await partService.findAll(req.user.role) }); }
   catch (err) { next(err); }
 }
 
 async function lowStock(req, res, next) {
-  try { res.json({ success: true, data: await partService.findLowStock() }); }
+  try { res.json({ success: true, data: await partService.findLowStock(req.user.role) }); }
   catch (err) { next(err); }
 }
 
 async function getById(req, res, next) {
   try {
-    const part = await partService.findById(req.params.id);
+    const part = await partService.findById(req.params.id, req.user.role);
     if (!part) return res.status(404).json({ success: false, message: 'Không tìm thấy phụ tùng' });
     res.json({ success: true, data: part });
   } catch (err) { next(err); }
@@ -50,16 +50,28 @@ async function deduct(req, res, next) {
   } catch (err) { next(err); }
 }
 
-/** Nhân viên kho nhập hàng */
-async function importStock(req, res, next) {
+async function reverseUsedPart(req, res, next) {
   try {
-    const part = await partService.importStock({
-      sparePartId: req.params.id,
-      quantity: req.body.quantity,
+    const used = await partService.reverseUsedPart({
+      usedPartId: req.params.usedPartId,
       recordedBy: req.user.id,
+      recordedByRole: req.user.role,
     });
-    res.json({ success: true, data: part });
+    res.json({ success: true, data: used });
   } catch (err) { next(err); }
 }
 
-module.exports = { list, lowStock, getById, create, update, deduct, importStock };
+/** Nhân viên kho nhập hàng */
+async function importStock(req, res, next) {
+  try {
+    const result = await partService.importStock({
+      sparePartId: req.params.id,
+      quantity: req.body.quantity,
+      purchasePrice: req.body.purchasePrice,
+      recordedBy: req.user.id,
+    });
+    res.json({ success: true, data: result });
+  } catch (err) { next(err); }
+}
+
+module.exports = { list, lowStock, getById, create, update, deduct, reverseUsedPart, importStock };
